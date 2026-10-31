@@ -28,6 +28,41 @@ services:
     networks:
       - agro-net
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    container_name: agro-keycloak
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # URL pública fija: el issuer de TODOS los tokens es http://localhost:8081/realms/agro,
+      # se pidan desde Postman o desde adentro de Docker. Así los servicios validan un solo issuer.
+      KC_HOSTNAME: http://localhost:8081
+      # Permite que los servicios dentro de Docker usen http://keycloak:8080 para pedir las claves (JWKS)
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      # Keycloak importa todos los .json de esta carpeta al arrancar (si el realm no existe)
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # La imagen no trae curl: se consulta el endpoint de salud (puerto de gestión 9000) con bash
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - agro-net
+
 volumes:
   postgres-data:
 
