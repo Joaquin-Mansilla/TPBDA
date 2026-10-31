@@ -1,0 +1,18 @@
+# Solo para desarrollo: Docker Compose lo combina automáticamente con docker-compose.yml.
+# Expone PostgreSQL para conectarse desde el IDE y desde los microservicios que corren
+# en la máquina de cada uno con mvn spring-boot:run.
+#
+# En la entrega final, docker-compose.yml deja publicados solo el Gateway y Keycloak.
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  # Cuando se sumen los microservicios, se exponen acá:
+  # ms-campos:
+  #   ports:
+  #     - "8083:8083"
+  # ms-tratamientos:
+  #   ports:
+  #     - "8082:8082"
