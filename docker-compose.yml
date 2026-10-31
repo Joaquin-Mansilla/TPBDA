@@ -1,0 +1,36 @@
+# Infraestructura del TPI. Los servicios (gateway, ms-campos, ms-tratamientos) se suman más adelante.
+#
+# Uso:   cp .env.example .env     (y cambiar las contraseñas)
+#        docker compose up -d
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: agro-postgres
+    environment:
+      POSTGRES_DB: agro                      # base de negocio; se crea sola
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Las leen los scripts de initdb para crear un usuario por servicio
+      CAMPOS_DB_PASSWORD: ${CAMPOS_DB_PASSWORD}
+      TRATAMIENTOS_DB_PASSWORD: ${TRATAMIENTOS_DB_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Se ejecutan solo la primera vez, cuando el volumen está vacío
+      - ./docker/postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d agro"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agro-net
+
+volumes:
+  postgres-data:
+
+networks:
+  agro-net:
+    name: agro-net
