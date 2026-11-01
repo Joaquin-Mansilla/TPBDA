@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: campos
+              uri: ${CAMPOS_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/establecimientos/**, /api/v1/lotes/**, /api/v1/campanias/**, /api/v1/aplicaciones/**
+            - id: tratamientos
+              uri: ${TRATAMIENTOS_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/cultivos/**, /api/v1/plagas/**, /api/v1/agroquimicos/**, /api/v1/evaluaciones/**
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/realms/agro}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/realms/agro/protocol/openid-connect/certs}
