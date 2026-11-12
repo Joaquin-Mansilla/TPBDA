@@ -1,5 +1,5 @@
 server:
-  port: 8082
+  port: ${PORT:8082}
 
 spring:
   application:
@@ -9,6 +9,7 @@ spring:
     username: ${DB_USER:tratamientos_user}
     password: ${DB_PASSWORD}
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
     properties:
@@ -22,3 +23,13 @@ spring:
           issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/realms/agro}
           # Dónde pedir las claves públicas; dentro de Docker se pisa con http://keycloak:8080/...
           jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/realms/agro/protocol/openid-connect/certs}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+agro:
+  # Carga los datos de ejemplo (catálogo) si las tablas están vacías
+  datos-iniciales: ${AGRO_DATOS_INICIALES:true}
