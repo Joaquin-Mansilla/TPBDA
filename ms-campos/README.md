@@ -34,5 +34,4 @@ IntelliJ: en la configuración de ejecución, *Environment variables* → `DB_PA
 | `JWT_ISSUER_URI` | `http://localhost:8081/realms/agro` | Tiene que coincidir con el `iss` del token |
 | `JWT_JWK_SET_URI` | `http://localhost:8081/realms/agro/protocol/openid-connect/certs` | En Docker: `http://keycloak:8080/realms/agro/protocol/openid-connect/certs` |
 
-`GET /api/v1/establecimientos/ping` es **temporal**: devuelve el `sub` y los roles del token, para
-probar el Gateway y la seguridad. Se borra cuando existan los endpoints reales.
+Para probar el Gateway y la seguridad: `GET /api/v1/establecimientos` (con un token de Keycloak).

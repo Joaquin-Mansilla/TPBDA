@@ -1,0 +1,7 @@
+# Perfil para correr sin Docker ni PostgreSQL: mvn spring-boot:run -Dspring-boot.run.profiles=h2
+# (la validación del JWT sigue necesitando Keycloak; para probar solo reglas usar los tests)
+spring:
+  datasource:
+    url: jdbc:h2:mem:agro;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;INIT=CREATE SCHEMA IF NOT EXISTS tratamientos
+    username: sa
+    password:

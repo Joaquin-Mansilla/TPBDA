@@ -5,12 +5,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
+import static ar.edu.agro.commons.security.Roles.*;
+
 /**
- * Resource Server: valida el JWT de Keycloak y arma las authorities ROLE_* con el conversor de agro-commons.
- * Por ahora basta con estar autenticado; la autorización por rol y ruta se completa en la tarea de seguridad.
+ * Resource Server: vuelve a validar el JWT aunque el pedido haya pasado por el gateway. El rol por operación se
+ * controla con @PreAuthorize en cada controlador y la pertenencia (C6) con AccesoService, comparando el sub del token.
  */
 @Configuration
 @EnableMethodSecurity
@@ -18,13 +21,17 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
-            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .anyRequest().authenticated())
-            .oauth2ResourceServer(o -> o.jwt(j ->
-                j.jwtAuthenticationConverter(KeycloakJwtAuthenticationConverter.build())));
+        http.csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(a -> a
+                        .requestMatchers("/actuator/health/**", "/actuator/health", "/v3/api-docs/**",
+                                "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/v1/**").hasAnyRole(PRODUCTOR, OPERARIO, AGRONOMO)
+                        .anyRequest().denyAll())
+                .oauth2ResourceServer(o -> o
+                        .jwt(j -> j.jwtAuthenticationConverter(KeycloakJwtAuthenticationConverter.build()))
+                        // T12: Keycloak caído = 503, no 401
+                        .authenticationEntryPoint(new IdentidadNoDisponibleEntryPoint()));
         return http.build();
     }
 }
