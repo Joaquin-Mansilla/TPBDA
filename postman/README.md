@@ -1,0 +1,87 @@
+# Colección de pruebas integrales (Postman / Newman)
+
+| Archivo | Qué es |
+|---|---|
+| `TPBDA.postman_collection.json` | La colección (Postman v2.1): 41 requests con asserts |
+| `TPBDA-local.postman_environment.json` | Entorno "TPBDA local": `baseUrl`, `keycloakUrl` y `gatewayUrl` |
+
+Todas las pruebas pasan por el **gateway** (`http://localhost:8080`), igual que un cliente real.
+
+## 1. Importar en Postman
+
+File → Import → elegir los dos archivos. Arriba a la derecha, seleccionar el entorno **TPBDA local**.
+
+## 2. Antes de correrla
+
+La carpeta **04** usa los datos de prueba que se cargan solos con la base vacía. Para que pase completa,
+la base tiene que estar **recién creada**:
+
+```bash
+docker compose down -v                                   # ⚠️ borra los datos locales
+BUILDX_BAKE_ENTITLEMENTS_FS=0 docker compose up -d --build
+docker compose ps                                        # esperar a que los 5 digan healthy
+```
+
+Las demás carpetas crean sus propios datos o no modifican nada: se pueden correr las veces que se quiera.
+
+## 3. Correrla entera
+
+- **Postman:** botón **Run** sobre la colección, en el orden en que está.
+- **Newman** (desde la raíz del repo):
+
+  ```bash
+  npx --yes newman run postman/TPBDA.postman_collection.json -e postman/TPBDA-local.postman_environment.json
+  ```
+
+Los tokens se piden en la carpeta 00 y duran unos minutos. Si una corrida se corta a la mitad, volver a
+correr la carpeta 00 antes de seguir.
+
+## 4. Qué prueba cada carpeta
+
+| Carpeta | Qué prueba | Tarea |
+|---|---|---|
+| 00 · Tokens | Pide un token para productor1, productor2, operario1 y agronomo1 | T05 |
+| 01 · Seguridad | Health sin token, 401 sin token, 403 por rol (operario planifica, productor crea cultivo) y por pertenencia (productor2 en el establecimiento de productor1) | T08 |
+| 02 · Catálogo | Listados de cultivos, plagas y agroquímicos; el agrónomo crea un cultivo | T07 |
+| 03 · Recorrido completo | Establecimiento → lote (SoilGrids/Georef o SIN_DATOS) → suelo a mano → campaña → C1, C2, C4 → SEMBRADA → C5 → monitoreo → aplicación → consulta de la evaluación | T07, T09, T10, T11 |
+| 04 · Reglas con datos de prueba | VIABLE (201), REPROGRAMAR por T3, NO_RECOMENDADO por T5, T1 y T2, pendiente por L1 (202), rotación C3, superficie tratada C2 | T07, T10, T11 |
+| 05 · Agrónomo resuelve pendientes | Bandeja, autorizar sin justificación (400), operario no autoriza (403), autorizar (200), A1 (422) | T08, T11 |
+| 06 · Validaciones y errores | Cuerpo inválido (400 con `detalles`), campaña inexistente (404), agroquímico inexistente (404) | T07, T12 |
+
+La consulta de una evaluación (`GET /evaluaciones/{id}`, del catálogo) está al final de la carpeta 03:
+necesita el id de una evaluación, que recién existe después de registrar una aplicación.
+
+### Si se corre dos veces sin borrar la base
+
+Con la base recién creada pasan los 81 asserts. En una segunda corrida sin borrar la base fallan 11, todos
+en las carpetas 04 y 05 (comprobado con Newman):
+
+| Request | Qué pasa en la segunda corrida |
+|---|---|
+| 04 · `201 · Aplicación viable` | Da **422 REPROGRAMAR**: la aplicación del 20/11 ya existe y no pasaron los 14 días (T3) |
+| 04 · `202 · Pendiente por falta de datos del lote (L1)` | Da **422 REPROGRAMAR**: la del lote 2 autorizada en la corrida anterior también cuenta para T3, y T3 se evalúa antes que L1 |
+| 05 · Bandeja, autorizar y A1 | Fallan en cadena: no hay una pendiente nueva para resolver (el id queda vacío y la API responde 400) |
+
+Las carpetas 00, 01, 02, 03 y 06 pasan igual en cualquier corrida.
+
+## 5. Tolerancia a fallos (T12, a mano)
+
+No están en la colección porque hay que apagar contenedores:
+
+- `docker compose stop ms-tratamientos`
+  - registrar una aplicación válida → **202** `PENDIENTE_DE_VALIDACION`
+  - planificar una campaña → **503** (o **504** si se prueba enseguida de pararlo)
+  - `docker compose start ms-tratamientos`
+- `docker compose stop ms-campos`
+  - cualquier endpoint de campos por el gateway → **503/504**
+  - `docker compose start ms-campos`
+
+## 6. Swagger
+
+Con el override activo (es el comportamiento por defecto de `docker compose up`):
+
+- ms-tratamientos: http://localhost:8082/swagger-ui.html
+- ms-campos: http://localhost:8083/swagger-ui.html
+
+Botón **Authorize** → pegar el token (sin la palabra `Bearer`). El token se saca con cualquier request de
+la carpeta 00 (campo `access_token` de la respuesta).

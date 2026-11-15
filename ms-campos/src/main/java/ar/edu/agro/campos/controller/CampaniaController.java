@@ -5,6 +5,8 @@ import ar.edu.agro.campos.service.AplicacionService;
 import ar.edu.agro.campos.service.CampaniaService;
 import ar.edu.agro.campos.service.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,14 @@ public class CampaniaController {
     @PatchMapping("/{id}/estado")
     @PreAuthorize("hasRole('PRODUCTOR')")
     @Operation(summary = "Marcar la campaña como sembrada, cosechada o perdida con motivo (F05, C5)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Estado actualizado"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
+            @ApiResponse(responseCode = "404", description = "No existe la campaña"),
+            @ApiResponse(responseCode = "409", description = "Otro usuario la modificó al mismo tiempo"),
+            @ApiResponse(responseCode = "422", description = "Transición no permitida o falta el motivo de pérdida (C5)")
+    })
     public CampaniaResponse cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambioEstadoRequest r, @AuthenticationPrincipal Jwt jwt) {
         return campanias.cambiarEstado(id, r, Usuario.de(jwt));
     }
@@ -51,6 +61,15 @@ public class CampaniaController {
     @PreAuthorize("hasAnyRole('PRODUCTOR','OPERARIO')")
     @Operation(summary = "Registrar una aplicación evaluada por ms-tratamientos (F07, proceso principal): "
             + "201 REGISTRADA, 422 rechazada (con fecha sugerida o motivos), 202 PENDIENTE_DE_VALIDACION (también si ms-tratamientos no responde)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "VIABLE: aplicación REGISTRADA"),
+            @ApiResponse(responseCode = "202", description = "PENDIENTE_DE_VALIDACION (REVISION_MANUAL por L1 o ms-tratamientos no respondió)"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "403", description = "Sin permiso o el establecimiento no es del usuario (C6)"),
+            @ApiResponse(responseCode = "404", description = "No existe la campaña, el agroquímico, la plaga o el cultivo"),
+            @ApiResponse(responseCode = "422", description = "Rechazada: regla de campos (C2, C5) o resultado REPROGRAMAR / NO_RECOMENDADO (no se guarda)"),
+            @ApiResponse(responseCode = "503", description = "Base de datos no disponible")
+    })
     public ResponseEntity<AplicacionResultadoResponse> registrarAplicacion(@PathVariable Long id,
             @Valid @RequestBody AplicacionRequest r, @AuthenticationPrincipal Jwt jwt) {
         var resultado = aplicaciones.registrar(id, r, Usuario.de(jwt));

@@ -27,7 +27,7 @@ class FallosHandlerTest {
         assertThat(r.getHeaders().getFirst("Retry-After")).isEqualTo("5");
         assertThat(r.getBody().status()).isEqualTo(503);
         assertThat(r.getBody().path()).isEqualTo("/api/v1/lotes/1/campanias");
-        assertThat(r.getBody().message()).contains("Tratamientos");
+        assertThat(r.getBody().message()).isEqualTo("Tratamientos no está disponible; reintente en unos segundos");
     }
 
     @Test
@@ -37,6 +37,7 @@ class FallosHandlerTest {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.GATEWAY_TIMEOUT);
         assertThat(r.getBody().status()).isEqualTo(504);
         assertThat(r.getHeaders().getFirst("Retry-After")).isEqualTo("5");
+        assertThat(r.getBody().message()).isEqualTo("Tratamientos no respondió a tiempo; reintente en unos segundos");
     }
 
     @Test

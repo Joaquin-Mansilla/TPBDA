@@ -45,7 +45,7 @@ public class IdentidadNoDisponibleEntryPoint implements AuthenticationEntryPoint
         cuerpo.put("error", "Service Unavailable");
         cuerpo.put("message", "No se puede validar el token en este momento (proveedor de identidad no disponible); reintente en unos segundos");
         cuerpo.put("path", request.getRequestURI());
-        cuerpo.put("details", List.of());
+        cuerpo.put("detalles", List.of());
         response.setStatus(503);
         response.setHeader("Retry-After", "5");
         response.setContentType("application/json;charset=UTF-8");

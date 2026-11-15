@@ -44,8 +44,10 @@ public class FallosHandler {
     @ExceptionHandler(ApiExternaException.class)
     public ResponseEntity<ErrorResponse> servicioExterno(ApiExternaException ex, HttpServletRequest req) {
         log.warn("{} falló ({}): {}", ex.getApi(), ex.esTimeout() ? "timeout" : "no disponible", ex.getMessage());
-        return respuesta(ex.esTimeout() ? HttpStatus.GATEWAY_TIMEOUT : HttpStatus.SERVICE_UNAVAILABLE,
-                ex.getMessage(), req);
+        if (ex.esTimeout()) {
+            return respuesta(HttpStatus.GATEWAY_TIMEOUT, ex.getApi() + " no respondió a tiempo; reintente en unos segundos", req);
+        }
+        return respuesta(HttpStatus.SERVICE_UNAVAILABLE, ex.getApi() + " no está disponible; reintente en unos segundos", req);
     }
 
     @ExceptionHandler(ServicioNoDisponibleException.class)
