@@ -1,0 +1,1842 @@
+{
+  "info": {
+    "name": "TPBDA · Pruebas integrales",
+    "description": "Pruebas integrales del TPI Backend agro por el gateway (T07 a T12). Ver postman/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 · Tokens",
+      "description": "Pide un token por usuario de prueba y lo guarda en variables de la colección.",
+      "item": [
+        {
+          "name": "200 · Token de productor1",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{keycloakUrl}}/realms/agro/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "agro-cliente",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "productor1",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "productor1",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"tokenProductor1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Token de productor2",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{keycloakUrl}}/realms/agro/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "agro-cliente",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "productor2",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "productor2",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"tokenProductor2\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Token de operario1",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{keycloakUrl}}/realms/agro/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "agro-cliente",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "operario1",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "operario1",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"tokenOperario1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Token de agronomo1",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{keycloakUrl}}/realms/agro/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "agro-cliente",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "agronomo1",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "agronomo1",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"tokenAgronomo1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 · Seguridad (T08)",
+      "item": [
+        {
+          "name": "200 · Health del gateway sin token",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{gatewayUrl}}/actuator/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 · Establecimientos sin token",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [],
+            "url": "{{baseUrl}}/establecimientos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 · Operario planifica una campaña",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/1/campanias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"2030-10-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 · Productor crea un cultivo en el catálogo",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cultivos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Cultivo no permitido\",\n  \"familia\": \"Prueba\",\n  \"diasCiclo\": 100,\n  \"mesSiembraDesde\": 9,\n  \"mesSiembraHasta\": 11\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 · productor2 consulta el establecimiento 1 (es de productor1)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor2}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/establecimientos/1",
+            "description": "Comportamiento real documentado: responde 403 (C6, AccessDeniedException), no 404."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// El sistema responde 403 (el establecimiento existe pero no es del usuario, regla C6).",
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 · Catálogo (ms-tratamientos)",
+      "item": [
+        {
+          "name": "200 · Listar cultivos",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/cultivos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista no vacía\", () => { const b = pm.response.json(); pm.expect(b).to.be.an(\"array\"); pm.expect(b.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Listar plagas",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/plagas"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista no vacía\", () => { const b = pm.response.json(); pm.expect(b).to.be.an(\"array\"); pm.expect(b.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Listar agroquímicos",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/agroquimicos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Lista no vacía\", () => { const b = pm.response.json(); pm.expect(b).to.be.an(\"array\"); pm.expect(b.length).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "201 · Agrónomo crea un cultivo nuevo",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/cultivos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Girasol {{$timestamp}}\",\n  \"familia\": \"Asterácea\",\n  \"diasCiclo\": 130,\n  \"mesSiembraDesde\": 9,\n  \"mesSiembraHasta\": 12\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Devuelve id\", () => pm.expect(pm.response.json().id).to.be.a(\"number\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 · Recorrido completo con datos nuevos (T07, T09, T11)",
+      "description": "Crea sus propios datos: se puede correr las veces que se quiera.",
+      "item": [
+        {
+          "name": "201 · Productor crea un establecimiento",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Establecimiento Postman {{$timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"establecimientoId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "201 · Productor crea un lote en Córdoba",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{establecimientoId}}/lotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote Postman\",\n  \"latitud\": -32.7,\n  \"longitud\": -62.1,\n  \"superficieHa\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "// SoilGrids y Georef pueden no responder: SIN_DATOS también es correcto (L1).",
+                  "pm.test(\"Estado de suelo OK o SIN_DATOS\", () => pm.expect([\"OK\", \"SIN_DATOS\"]).to.include(pm.response.json().estadoSuelo));",
+                  "pm.collectionVariables.set(\"loteId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Agrónomo carga el suelo a mano",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{loteId}}/suelo",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claseTextura\": \"FRANCO\",\n  \"arcillaPct\": 25,\n  \"arenaPct\": 40,\n  \"limoPct\": 35,\n  \"ph\": 6.5,\n  \"carbonoOrganico\": 15,\n  \"provincia\": \"Córdoba\",\n  \"departamento\": \"Marcos Juárez\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Suelo OK\", () => pm.expect(pm.response.json().estadoSuelo).to.eql(\"OK\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "201 · Productor planifica soja",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 40,\n  \"fechaSiembra\": \"2027-10-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"PLANIFICADA\", () => pm.expect(pm.response.json().estado).to.eql(\"PLANIFICADA\"));",
+                  "pm.collectionVariables.set(\"campaniaId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Campaña superpuesta (C1)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"2027-11-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C1\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C1\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Superficie mayor a la del lote (C2)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 60,\n  \"fechaSiembra\": \"2028-10-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C2\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C2\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Siembra fuera de la ventana (C4)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"2028-06-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C4\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C4\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Pasar la campaña a SEMBRADA",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/estado",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"SEMBRADA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Volver de SEMBRADA a PLANIFICADA (C5)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/estado",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"PLANIFICADA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C5\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C5\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "201 · Registrar un monitoreo",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/monitoreos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plagaId\": 1,\n  \"incidenciaPct\": 20,\n  \"fecha\": \"2027-11-10\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Devuelve id\", () => pm.expect(pm.response.json().id).to.be.a(\"number\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "201 o 202 · Registrar una aplicación",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 30,\n  \"fecha\": \"2027-11-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201 o 202\", () => pm.expect([201, 202]).to.include(pm.response.code));",
+                  "pm.test(\"El estado coincide con el código\", () => {",
+                  "    const esperado = pm.response.code === 201 ? \"REGISTRADA\" : \"PENDIENTE_DE_VALIDACION\";",
+                  "    pm.expect(pm.response.json().estado).to.eql(esperado);",
+                  "});",
+                  "if (pm.response.json().evaluacionId) { pm.collectionVariables.set(\"evaluacionId\", pm.response.json().evaluacionId); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Agrónomo consulta la evaluación",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/evaluaciones/{{evaluacionId}}",
+            "description": "Prueba del catálogo (carpeta 02) movida acá: necesita un evaluacionId, que recién existe después de registrar una aplicación."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es la evaluación pedida\", () => pm.expect(String(pm.response.json().evaluacion.id)).to.eql(String(pm.collectionVariables.get(\"evaluacionId\"))));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 · Reglas con los datos de prueba",
+      "description": "Necesita la base recién creada (docker compose down -v): usa los datos iniciales.",
+      "item": [
+        {
+          "name": "201 · Aplicación viable",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 50,\n  \"fecha\": \"2026-11-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Resultado VIABLE\", () => pm.expect(pm.response.json().resultado).to.eql(\"VIABLE\"));",
+                  "pm.test(\"REGISTRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"REGISTRADA\"));",
+                  "pm.collectionVariables.set(\"evaluacionIdViable\", pm.response.json().evaluacionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · REPROGRAMAR por intervalo (T3)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 50,\n  \"fecha\": \"2026-11-13\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Resultado REPROGRAMAR\", () => pm.expect(pm.response.json().resultado).to.eql(\"REPROGRAMAR\"));",
+                  "pm.test(\"Trae fecha sugerida\", () => pm.expect(pm.response.json().fechaSugerida).to.be.a(\"string\"));",
+                  "pm.test(\"Motivo T3\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"T3\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · NO_RECOMENDADO por restricción en Córdoba (T5)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 2,\n  \"plagaId\": 2,\n  \"dosisPorHa\": 0.2,\n  \"superficieTratadaHa\": 50,\n  \"fecha\": \"2026-11-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Resultado NO_RECOMENDADO\", () => pm.expect(pm.response.json().resultado).to.eql(\"NO_RECOMENDADO\"));",
+                  "pm.test(\"Motivo T5\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"T5\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · NO_RECOMENDADO por producto no habilitado (T1)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 3,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 2,\n  \"superficieTratadaHa\": 50,\n  \"fecha\": \"2026-11-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Resultado NO_RECOMENDADO\", () => pm.expect(pm.response.json().resultado).to.eql(\"NO_RECOMENDADO\"));",
+                  "pm.test(\"Motivo T1\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"T1\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · NO_RECOMENDADO por dosis fuera de rango (T2)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 10,\n  \"superficieTratadaHa\": 50,\n  \"fecha\": \"2026-12-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Resultado NO_RECOMENDADO\", () => pm.expect(pm.response.json().resultado).to.eql(\"NO_RECOMENDADO\"));",
+                  "pm.test(\"Motivo T2\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"T2\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "202 · Pendiente por falta de datos del lote (L1)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/2/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 30,\n  \"fecha\": \"2026-11-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"Resultado REVISION_MANUAL\", () => pm.expect(pm.response.json().resultado).to.eql(\"REVISION_MANUAL\"));",
+                  "pm.test(\"PENDIENTE_DE_VALIDACION\", () => pm.expect(pm.response.json().estado).to.eql(\"PENDIENTE_DE_VALIDACION\"));",
+                  "pm.collectionVariables.set(\"aplicacionPendienteId\", pm.response.json().aplicacionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Rotación: tercera soja seguida en el lote 3 (C3)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/3/campanias",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 70,\n  \"fechaSiembra\": \"2026-11-15\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C3\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C3\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Superficie tratada mayor a la sembrada (C2)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 90,\n  \"fecha\": \"2026-12-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C2\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C2\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 · Agrónomo resuelve pendientes (T11)",
+      "item": [
+        {
+          "name": "200 · Bandeja de pendientes",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/aplicaciones?estado=PENDIENTE_DE_VALIDACION"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Contiene la pendiente por L1\", () => {",
+                  "    const id = Number(pm.collectionVariables.get(\"aplicacionPendienteId\"));",
+                  "    pm.expect(pm.response.json().map(a => a.id)).to.include(id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "400 · Autorizar sin justificación",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/aplicaciones/{{aplicacionPendienteId}}/autorizacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"detalles no vacío\", () => pm.expect(pm.response.json().detalles).to.not.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 · Operario intenta autorizar",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/aplicaciones/{{aplicacionPendienteId}}/autorizacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"justificacion\": \"No debería poder\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Autorizar con justificación",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/aplicaciones/{{aplicacionPendienteId}}/autorizacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"justificacion\": \"Revisé el lote en campo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"AUTORIZADA_MANUALMENTE\", () => pm.expect(pm.response.json().estado).to.eql(\"AUTORIZADA_MANUALMENTE\"));",
+                  "pm.test(\"La autorizó agronomo1\", () => pm.expect(pm.response.json().autorizadaPorSub).to.eql(\"33333333-3333-3333-3333-000000000001\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Autorizar otra vez la misma (A1)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/aplicaciones/{{aplicacionPendienteId}}/autorizacion",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"justificacion\": \"Otra vez\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 · Validaciones y errores",
+      "item": [
+        {
+          "name": "400 · Aplicación con dosis negativa",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": -1,\n  \"superficieTratadaHa\": 10,\n  \"fecha\": \"2026-12-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"detalles no vacío\", () => pm.expect(pm.response.json().detalles).to.not.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 · Aplicación en una campaña que no existe",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/9999/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 10,\n  \"fecha\": \"2026-12-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 · Aplicación con un agroquímico que no existe",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/1/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 9999,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 10,\n  \"fecha\": \"2026-12-20\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tokenProductor1",
+      "value": ""
+    },
+    {
+      "key": "tokenProductor2",
+      "value": ""
+    },
+    {
+      "key": "tokenOperario1",
+      "value": ""
+    },
+    {
+      "key": "tokenAgronomo1",
+      "value": ""
+    },
+    {
+      "key": "establecimientoId",
+      "value": ""
+    },
+    {
+      "key": "loteId",
+      "value": ""
+    },
+    {
+      "key": "campaniaId",
+      "value": ""
+    },
+    {
+      "key": "evaluacionId",
+      "value": ""
+    },
+    {
+      "key": "evaluacionIdViable",
+      "value": ""
+    },
+    {
+      "key": "aplicacionPendienteId",
+      "value": ""
+    }
+  ]
+}

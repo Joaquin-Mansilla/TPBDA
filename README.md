@@ -7,6 +7,7 @@
 | [ms-campos](ms-campos/) | Microservicio de establecimientos, lotes y campañas (puerto 8083) |
 | [ms-tratamientos](ms-tratamientos/) | Microservicio de catálogo y evaluaciones (puerto 8082) |
 | [gateway](gateway/) | Punto de entrada, enruta a los microservicios (puerto 8080) |
+| [postman](postman/) | Colección de pruebas integrales (Postman/Newman) |
 
 ## Levantar todo
 
