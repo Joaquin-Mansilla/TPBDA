@@ -5,6 +5,8 @@ import ar.edu.agro.campos.model.EstadoAplicacion;
 import ar.edu.agro.campos.service.AplicacionService;
 import ar.edu.agro.campos.service.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +42,14 @@ public class AplicacionController {
     @PostMapping("/{id}/autorizacion")
     @PreAuthorize("hasRole('AGRONOMO')")
     @Operation(summary = "Autorizar manualmente una aplicación pendiente; la justificación es obligatoria (F09, A1)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "AUTORIZADA_MANUALMENTE"),
+            @ApiResponse(responseCode = "400", description = "Falta la justificación"),
+            @ApiResponse(responseCode = "403", description = "Solo AGRONOMO"),
+            @ApiResponse(responseCode = "404", description = "No existe la aplicación"),
+            @ApiResponse(responseCode = "409", description = "Otro agrónomo la resolvió al mismo tiempo"),
+            @ApiResponse(responseCode = "422", description = "La aplicación no está pendiente (A1)")
+    })
     public AplicacionResponse autorizar(@PathVariable Long id, @Valid @RequestBody AutorizacionRequest r, @AuthenticationPrincipal Jwt jwt) {
         return aplicaciones.autorizar(id, r, Usuario.de(jwt));
     }
@@ -47,6 +57,16 @@ public class AplicacionController {
     @PostMapping("/{id}/reevaluacion")
     @PreAuthorize("hasRole('AGRONOMO')")
     @Operation(summary = "Volver a evaluar una aplicación pendiente con ms-tratamientos (F09). 503 si no responde")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "VIABLE: pasa a REGISTRADA"),
+            @ApiResponse(responseCode = "202", description = "Sigue pendiente (REVISION_MANUAL)"),
+            @ApiResponse(responseCode = "403", description = "Solo AGRONOMO"),
+            @ApiResponse(responseCode = "404", description = "No existe la aplicación"),
+            @ApiResponse(responseCode = "409", description = "Otro agrónomo la resolvió al mismo tiempo"),
+            @ApiResponse(responseCode = "422", description = "No está pendiente (A1) o el resultado es REPROGRAMAR / NO_RECOMENDADO (sigue pendiente)"),
+            @ApiResponse(responseCode = "503", description = "ms-tratamientos no disponible"),
+            @ApiResponse(responseCode = "504", description = "ms-tratamientos no respondió a tiempo")
+    })
     public ResponseEntity<AplicacionResultadoResponse> reevaluar(@PathVariable Long id) {
         var resultado = aplicaciones.reevaluar(id);
         return ResponseEntity.status(resultado.status()).body(resultado.cuerpo());

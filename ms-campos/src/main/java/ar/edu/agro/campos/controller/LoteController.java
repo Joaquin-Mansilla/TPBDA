@@ -5,6 +5,8 @@ import ar.edu.agro.campos.service.CampaniaService;
 import ar.edu.agro.campos.service.LoteService;
 import ar.edu.agro.campos.service.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -49,6 +51,15 @@ public class LoteController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('PRODUCTOR')")
     @Operation(summary = "Planificar una campaña: valida C1 a C4 con el cultivo de ms-tratamientos (F04). 503 si ms-tratamientos no responde")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Campaña PLANIFICADA"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
+            @ApiResponse(responseCode = "404", description = "No existe el lote o el cultivo"),
+            @ApiResponse(responseCode = "422", description = "No cumple C1 a C4"),
+            @ApiResponse(responseCode = "503", description = "ms-tratamientos no disponible"),
+            @ApiResponse(responseCode = "504", description = "ms-tratamientos no respondió a tiempo")
+    })
     public CampaniaResponse planificar(@PathVariable Long id, @Valid @RequestBody CampaniaRequest r, @AuthenticationPrincipal Jwt jwt) {
         return campanias.planificar(id, r, Usuario.de(jwt));
     }

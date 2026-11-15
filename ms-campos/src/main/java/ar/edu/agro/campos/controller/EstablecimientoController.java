@@ -5,6 +5,8 @@ import ar.edu.agro.campos.service.EstablecimientoService;
 import ar.edu.agro.campos.service.LoteService;
 import ar.edu.agro.campos.service.Usuario;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -51,6 +53,12 @@ public class EstablecimientoController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('PRODUCTOR')")
     @Operation(summary = "Registrar un lote y completar su suelo (SoilGrids) y ubicación (Georef) (F02, L1)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Lote creado; con suelo y ubicación, o SIN_DATOS si SoilGrids o Georef no respondieron (L1)"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
+            @ApiResponse(responseCode = "404", description = "No existe el establecimiento")
+    })
     public LoteResponse crearLote(@PathVariable Long id, @Valid @RequestBody LoteRequest r, @AuthenticationPrincipal Jwt jwt) {
         return lotes.crear(id, r, Usuario.de(jwt));
     }

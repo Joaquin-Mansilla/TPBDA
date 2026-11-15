@@ -5,6 +5,8 @@ import ar.edu.agro.commons.contract.EvaluacionResponse;
 import ar.edu.agro.tratamientos.dto.EvaluacionDetalleResponse;
 import ar.edu.agro.tratamientos.service.EvaluacionService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,12 @@ public class EvaluacionController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Evaluar una aplicación con T1 a T5 (F11). Lo invoca ms-campos reenviando el token del usuario; "
             + "una aplicación rechazada también es una evaluación exitosa (el resultado va en el cuerpo)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Evaluación registrada; el resultado (VIABLE, REPROGRAMAR, NO_RECOMENDADO o REVISION_MANUAL) va en el cuerpo"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "403", description = "Rol sin permiso"),
+            @ApiResponse(responseCode = "404", description = "No existe el agroquímico, la plaga o el cultivo")
+    })
     public EvaluacionResponse evaluar(@Valid @RequestBody EvaluacionRequest req, @AuthenticationPrincipal Jwt jwt) {
         return evaluaciones.evaluar(req, jwt.getSubject());
     }
