@@ -40,7 +40,7 @@ public class IdentidadNoDisponibleEntryPoint implements ServerAuthenticationEntr
         cuerpo.put("error", "Service Unavailable");
         cuerpo.put("message", "No se puede validar el token en este momento (proveedor de identidad no disponible); reintente en unos segundos");
         cuerpo.put("path", exchange.getRequest().getPath().value());
-        cuerpo.put("details", List.of());
+        cuerpo.put("detalles", List.of());
         byte[] bytes;
         try {
             bytes = JSON.writeValueAsBytes(cuerpo);

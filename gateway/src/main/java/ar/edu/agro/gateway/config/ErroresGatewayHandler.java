@@ -29,7 +29,7 @@ import reactor.core.publisher.Mono;
  *   conexión cortada o respuesta ilegible del microservicio                                 -> 502 Bad Gateway
  *
  * Todo lo demás (404 de ruta inexistente, errores de seguridad, etc.) se deja pasar al manejo normal de Spring.
- * El cuerpo usa el mismo formato de error que los microservicios (timestamp, status, error, message, path, details).
+ * El cuerpo usa el mismo formato de error que los microservicios (timestamp, status, error, message, path, detalles).
  */
 @Component
 @Order(-2)
@@ -58,7 +58,7 @@ public class ErroresGatewayHandler implements ErrorWebExceptionHandler {
         cuerpo.put("error", status.getReasonPhrase());
         cuerpo.put("message", mensaje(status));
         cuerpo.put("path", path);
-        cuerpo.put("details", List.of());
+        cuerpo.put("detalles", List.of());
 
         byte[] bytes;
         try {
