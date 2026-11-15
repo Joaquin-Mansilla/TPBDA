@@ -9,6 +9,9 @@ aplicaciones. Puerto **8082**.
 
 ## Correr en tu máquina
 
+Con Docker (recomendado): `docker compose up -d --build` en la raíz levanta este servicio junto con los demás.
+Para correrlo a mano con Maven, primero pará su contenedor: `docker compose stop ms-tratamientos`.
+
 Requisitos: la infraestructura levantada (`docker compose up -d` en la raíz) y `agro-commons`
 instalado (`mvn clean install` en `agro-commons/`).
 

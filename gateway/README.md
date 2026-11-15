@@ -55,6 +55,9 @@ Prueba a mano (con el compose levantado y `$TOKEN` de `productor1`):
 
 ## Correr en tu máquina
 
+Con Docker (recomendado): `docker compose up -d --build` en la raíz levanta este servicio junto con los demás.
+Para correrlo a mano con Maven, primero pará su contenedor: `docker compose stop gateway`.
+
     mvn spring-boot:run
 
 En Docker se pisan `CAMPOS_URL=http://ms-campos:8083`, `TRATAMIENTOS_URL=http://ms-tratamientos:8082`
