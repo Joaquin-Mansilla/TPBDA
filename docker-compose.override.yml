@@ -9,10 +9,12 @@ services:
     ports:
       - "5432:5432"
 
-  # Cuando se sumen los microservicios, se exponen acá:
-  # ms-campos:
-  #   ports:
-  #     - "8083:8083"
-  # ms-tratamientos:
-  #   ports:
-  #     - "8082:8082"
+  # Acceso directo a cada microservicio (Swagger, pruebas sin gateway).
+  # Si vas a correr un servicio a mano con mvn spring-boot:run, primero pará su contenedor:
+  #   docker compose stop ms-campos
+  ms-campos:
+    ports:
+      - "8083:8083"
+  ms-tratamientos:
+    ports:
+      - "8082:8082"

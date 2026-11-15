@@ -1,7 +1,8 @@
-# Infraestructura del TPI. Los servicios (gateway, ms-campos, ms-tratamientos) se suman más adelante.
+# TPI Backend agro: los 5 contenedores en la red agro-net.
+# Publicados hacia afuera: solo el Gateway (8080) y Keycloak (8081).
 #
 # Uso:   cp .env.example .env     (y cambiar las contraseñas)
-#        docker compose up -d
+#        docker compose up -d --build     (la primera vez tarda: compila los tres servicios)
 
 services:
 
@@ -60,6 +61,94 @@ services:
       timeout: 5s
       retries: 20
       start_period: 30s
+    networks:
+      - agro-net
+
+  ms-tratamientos:
+    build:
+      context: .
+      dockerfile: ms-tratamientos/Dockerfile
+    image: agro/ms-tratamientos
+    container_name: agro-ms-tratamientos
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/agro
+      DB_USER: tratamientos_user
+      DB_PASSWORD: ${TRATAMIENTOS_DB_PASSWORD}
+      # El "iss" de los tokens siempre es localhost:8081 (KC_HOSTNAME fijo); las claves se piden por la red interna
+      JWT_ISSUER_URI: http://localhost:8081/realms/agro
+      JWT_JWK_SET_URI: http://keycloak:8080/realms/agro/protocol/openid-connect/certs
+      TZ: America/Argentina/Buenos_Aires
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      # La imagen no trae curl: se consulta /actuator/health con bash, igual que en keycloak
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8082 && echo -e 'GET /actuator/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - agro-net
+
+  ms-campos:
+    build:
+      context: .
+      dockerfile: ms-campos/Dockerfile
+    image: agro/ms-campos
+    container_name: agro-ms-campos
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/agro
+      DB_USER: campos_user
+      DB_PASSWORD: ${CAMPOS_DB_PASSWORD}
+      JWT_ISSUER_URI: http://localhost:8081/realms/agro
+      JWT_JWK_SET_URI: http://keycloak:8080/realms/agro/protocol/openid-connect/certs
+      # ms-campos llama a ms-tratamientos por la red interna, sin pasar por el gateway (T10)
+      TRATAMIENTOS_URL: http://ms-tratamientos:8082
+      TZ: America/Argentina/Buenos_Aires
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8083 && echo -e 'GET /actuator/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks:
+      - agro-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    image: agro/gateway
+    container_name: agro-gateway
+    environment:
+      CAMPOS_URL: http://ms-campos:8083
+      TRATAMIENTOS_URL: http://ms-tratamientos:8082
+      JWT_ISSUER_URI: http://localhost:8081/realms/agro
+      JWT_JWK_SET_URI: http://keycloak:8080/realms/agro/protocol/openid-connect/certs
+      TZ: America/Argentina/Buenos_Aires
+    ports:
+      - "8080:8080"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      ms-campos:
+        condition: service_healthy
+      ms-tratamientos:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /actuator/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
     networks:
       - agro-net
 
