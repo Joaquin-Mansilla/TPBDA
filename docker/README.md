@@ -1,5 +1,9 @@
 # Infraestructura local (T05)
 
+Desde la T13, `docker compose up -d --build` levanta los 5 contenedores (estos dos más `ms-tratamientos`,
+`ms-campos` y `gateway`). Cómo levantar todo y los puertos: ver el [README de la raíz](../README.md).
+Este archivo detalla PostgreSQL y Keycloak.
+
 | Contenedor | Imagen | Puerto en tu máquina | Para qué |
 |---|---|---|---|
 | agro-postgres | postgres:16 | 5432 (solo con el override) | Base `agro` con esquemas `campos` y `tratamientos`, y base `keycloak` |
