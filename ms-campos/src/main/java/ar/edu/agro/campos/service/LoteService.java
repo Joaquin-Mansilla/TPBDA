@@ -8,6 +8,7 @@ import ar.edu.agro.campos.dto.CamposDtos.LoteResponse;
 import ar.edu.agro.campos.dto.CamposDtos.SueloRequest;
 import ar.edu.agro.campos.model.Establecimiento;
 import ar.edu.agro.campos.model.EstadoSuelo;
+import ar.edu.agro.campos.model.GeometriaCampo;
 import ar.edu.agro.campos.model.Lote;
 import ar.edu.agro.campos.repository.LoteRepository;
 import ar.edu.agro.commons.contract.ClaseTextura;
@@ -15,6 +16,7 @@ import ar.edu.agro.commons.contract.SueloDto;
 import ar.edu.agro.commons.error.RecursoNoEncontradoException;
 import ar.edu.agro.commons.error.ServicioNoDisponibleException;
 import ar.edu.agro.commons.error.SolicitudInvalidaException;
+import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,9 +49,13 @@ public class LoteService {
     public LoteResponse crear(Long establecimientoId, LoteRequest r, Usuario u) {
         Establecimiento e = establecimientos.buscar(establecimientoId);
         acceso.exigirDueno(e, u);
+        // C2 antes de consultar SoilGrids y Georef: no tiene sentido esperarlas si el lote se va a rechazar
+        exigirQueEntre(e, r);
         DatosExternosLote datos = externos.consultar(r.latitud(), r.longitud());
 
         return tx.execute(estado -> {
+            // la suma se vuelve a controlar: mientras se esperaba a las APIs pudo crearse otro lote
+            exigirQueEntre(e, r);
             Lote l = new Lote();
             l.setEstablecimiento(e);
             l.setNombre(r.nombre());
@@ -115,6 +121,25 @@ public class LoteService {
 
     public Lote buscar(Long id) {
         return lotes.findById(id).orElseThrow(() -> new RecursoNoEncontradoException("No existe el lote " + id));
+    }
+
+    /**
+     * C2 (T16): el lote tiene que caer dentro del rectángulo del establecimiento y entrar en la superficie que queda.
+     * Los establecimientos creados antes de la T16 no tienen límites: no se controlan.
+     */
+    private void exigirQueEntre(Establecimiento e, LoteRequest r) {
+        GeometriaCampo.Rectangulo rect = e.rectangulo();
+        if (rect == null) {
+            return;
+        }
+        if (!GeometriaCampo.contiene(rect, r.latitud(), r.longitud())) {
+            throw ErroresDeRegla.de("C2", "El lote está fuera de los límites del establecimiento");
+        }
+        BigDecimal total = lotes.sumarSuperficie(e.getId()).add(r.superficieHa());
+        if (total.compareTo(e.getSuperficieHa()) > 0) {
+            throw ErroresDeRegla.de("C2", "La superficie de los lotes (" + total.stripTrailingZeros().toPlainString()
+                    + " ha) supera la del establecimiento (" + e.getSuperficieHa() + " ha)");
+        }
     }
 
     /** Copia al lote lo que devolvieron SoilGrids y Georef; lo que no vino queda como estaba. */

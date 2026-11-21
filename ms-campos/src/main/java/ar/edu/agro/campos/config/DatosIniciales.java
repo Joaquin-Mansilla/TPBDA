@@ -57,8 +57,9 @@ public class DatosIniciales implements ApplicationRunner {
         if (establecimientos.count() > 0) {
             return;
         }
-        Establecimiento e1 = establecimiento("La Esperanza", productor1, Set.of(operario1));
-        Establecimiento e2 = establecimiento("Los Aromos", productor2, Set.of());
+        // rectángulos que contienen a sus lotes y alcanzan su superficie (≈ 2.500 ha y ≈ 415 ha)
+        Establecimiento e1 = establecimiento("La Esperanza", productor1, Set.of(operario1), "-32.73", "-32.69", "-62.15", "-62.09");
+        Establecimiento e2 = establecimiento("Los Aromos", productor2, Set.of(), "-32.81", "-32.79", "-62.31", "-62.29");
 
         Lote norte = lote(e1, "Lote Norte", "-32.700000", "-62.100000", "100.00", true, ClaseTextura.FRANCO, "25", "40", "35");
         Lote sur = lote(e1, "Lote Sur", "-32.710000", "-62.120000", "50.00", false, null, null, null, null);
@@ -83,16 +84,25 @@ public class DatosIniciales implements ApplicationRunner {
         aplicaciones.save(a);
     }
 
-    private Establecimiento establecimiento(String nombre, String productorSub, Set<String> operarios) {
+    private Establecimiento establecimiento(String nombre, String productorSub, Set<String> operarios,
+                                            String latMin, String latMax, String lonMin, String lonMax) {
         Establecimiento e = new Establecimiento();
         e.setNombre(nombre);
         e.setProductorSub(productorSub);
         e.setOperarios(new HashSet<>(operarios));
+        e.setLatitudMin(new BigDecimal(latMin));
+        e.setLatitudMax(new BigDecimal(latMax));
+        e.setLongitudMin(new BigDecimal(lonMin));
+        e.setLongitudMax(new BigDecimal(lonMax));
+        e.setSuperficieHa(GeometriaCampo.superficieHa(e.rectangulo()));
         return establecimientos.save(e);
     }
 
     private Lote lote(Establecimiento e, String nombre, String lat, String lon, String sup, boolean conSuelo,
                       ClaseTextura clase, String arcilla, String arena, String limo) {
+        if (!GeometriaCampo.contiene(e.rectangulo(), new BigDecimal(lat), new BigDecimal(lon))) {
+            throw new IllegalStateException("Datos de prueba: el lote " + nombre + " queda fuera de " + e.getNombre());
+        }
         Lote l = new Lote();
         l.setEstablecimiento(e);
         l.setNombre(nombre);

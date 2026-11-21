@@ -20,14 +20,22 @@ public final class CamposDtos {
     }
 
     // ---- establecimientos y lotes
-    public record EstablecimientoRequest(@NotBlank @Size(max = 100) String nombre, Set<String> operarios) {
+    /** El establecimiento se define con un rectángulo de coordenadas; con él se calculan sus hectáreas (T16). */
+    public record EstablecimientoRequest(@NotBlank @Size(max = 100) String nombre, Set<String> operarios,
+                                         @NotNull @DecimalMin("-90") @DecimalMax("90") BigDecimal latitudMin,
+                                         @NotNull @DecimalMin("-90") @DecimalMax("90") BigDecimal latitudMax,
+                                         @NotNull @DecimalMin("-180") @DecimalMax("180") BigDecimal longitudMin,
+                                         @NotNull @DecimalMin("-180") @DecimalMax("180") BigDecimal longitudMax) {
     }
 
     public record LoteResumen(Long id, String nombre, BigDecimal superficieHa, EstadoSuelo estadoSuelo) {
     }
 
+    /** superficieLibreHa = superficie del establecimiento menos la suma de sus lotes. */
     public record EstablecimientoResponse(Long id, String nombre, String productorSub, Set<String> operarios,
-                                          List<LoteResumen> lotes) {
+                                          List<LoteResumen> lotes, BigDecimal latitudMin, BigDecimal latitudMax,
+                                          BigDecimal longitudMin, BigDecimal longitudMax, BigDecimal superficieHa,
+                                          BigDecimal superficieLibreHa) {
     }
 
     public record LoteRequest(@NotBlank @Size(max = 100) String nombre,

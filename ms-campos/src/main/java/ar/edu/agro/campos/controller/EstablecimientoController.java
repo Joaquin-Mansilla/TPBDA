@@ -57,7 +57,8 @@ public class EstablecimientoController {
             @ApiResponse(responseCode = "201", description = "Lote creado; con suelo y ubicación, o SIN_DATOS si SoilGrids o Georef no respondieron (L1)"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),
             @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
-            @ApiResponse(responseCode = "404", description = "No existe el establecimiento")
+            @ApiResponse(responseCode = "404", description = "No existe el establecimiento"),
+            @ApiResponse(responseCode = "422", description = "Fuera de los límites del establecimiento o sin superficie libre (C2)")
     })
     public LoteResponse crearLote(@PathVariable Long id, @Valid @RequestBody LoteRequest r, @AuthenticationPrincipal Jwt jwt) {
         return lotes.crear(id, r, Usuario.de(jwt));

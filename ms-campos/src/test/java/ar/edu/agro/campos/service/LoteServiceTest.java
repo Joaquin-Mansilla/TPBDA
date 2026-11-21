@@ -23,6 +23,7 @@ import ar.edu.agro.campos.repository.LoteRepository;
 import ar.edu.agro.commons.contract.ClaseTextura;
 import ar.edu.agro.commons.contract.SueloDto;
 import ar.edu.agro.commons.contract.UbicacionDto;
+import ar.edu.agro.commons.error.ReglaNegocioException;
 import ar.edu.agro.commons.error.ServicioNoDisponibleException;
 import ar.edu.agro.commons.error.SolicitudInvalidaException;
 import ar.edu.agro.commons.security.Roles;
@@ -64,6 +65,17 @@ class LoteServiceTest {
         e.setId(1L);
         e.setProductorSub("prod-1");
         when(establecimientos.buscar(1L)).thenReturn(e);
+
+        // establecimiento con límites (T16): rectángulo de ≈ 420 ha alrededor de LAT/LON
+        Establecimiento conLimites = new Establecimiento();
+        conLimites.setId(2L);
+        conLimites.setProductorSub("prod-1");
+        conLimites.setLatitudMin(new BigDecimal("-31.43"));
+        conLimites.setLatitudMax(new BigDecimal("-31.41"));
+        conLimites.setLongitudMin(new BigDecimal("-64.19"));
+        conLimites.setLongitudMax(new BigDecimal("-64.17"));
+        conLimites.setSuperficieHa(new BigDecimal("420.00"));
+        when(establecimientos.buscar(2L)).thenReturn(conLimites);
 
         ApisExternasProperties props = new ApisExternasProperties(true,
                 new ApisExternasProperties.SoilGrids("http://x", "0-5cm", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
@@ -144,6 +156,51 @@ class LoteServiceTest {
         orden.verify(externos).consultar(LAT, LON);
         orden.verify(tx).execute(any());
         orden.verify(lotes).save(any(Lote.class));
+    }
+
+    @Test
+    void unLoteDentroDelEstablecimientoYQueEntraSeCrea() {
+        when(lotes.sumarSuperficie(2L)).thenReturn(new BigDecimal("300"));
+        when(externos.consultar(LAT, LON)).thenReturn(new DatosExternosLote(null, null));
+
+        LoteResponse r = servicio.crear(2L, new LoteRequest("Lote", LAT, LON, new BigDecimal("120")), productor);
+
+        assertThat(r.id()).isEqualTo(9L);
+    }
+
+    @Test
+    void unLoteFueraDeLosLimitesEsC2SinConsultarLasApis() {
+        LoteRequest afuera = new LoteRequest("Lote", new BigDecimal("-33.50"), LON, new BigDecimal("10"));
+
+        assertThatThrownBy(() -> servicio.crear(2L, afuera, productor))
+                .isInstanceOf(ReglaNegocioException.class)
+                .satisfies(ex -> assertThat(((ReglaNegocioException) ex).getMotivos())
+                        .containsExactly("C2: El lote está fuera de los límites del establecimiento"));
+        verify(externos, never()).consultar(any(), any());
+        verify(lotes, never()).save(any());
+    }
+
+    @Test
+    void siLosLotesSuperanLaSuperficieDelEstablecimientoEsC2SinConsultarLasApis() {
+        when(lotes.sumarSuperficie(2L)).thenReturn(new BigDecimal("300"));
+
+        assertThatThrownBy(() -> servicio.crear(2L, new LoteRequest("Lote", LAT, LON, new BigDecimal("120.01")), productor))
+                .isInstanceOf(ReglaNegocioException.class)
+                .satisfies(ex -> assertThat(((ReglaNegocioException) ex).getMotivos())
+                        .containsExactly("C2: La superficie de los lotes (420.01 ha) supera la del establecimiento (420.00 ha)"));
+        verify(externos, never()).consultar(any(), any());
+    }
+
+    @Test
+    void laSumaSeVuelveAControlarDentroDeLaTransaccion() {
+        // antes de las APIs había lugar; mientras se esperaba, otro lote ocupó la superficie
+        when(lotes.sumarSuperficie(2L)).thenReturn(new BigDecimal("300"), new BigDecimal("400"));
+        when(externos.consultar(LAT, LON)).thenReturn(new DatosExternosLote(null, null));
+
+        assertThatThrownBy(() -> servicio.crear(2L, new LoteRequest("Lote", LAT, LON, new BigDecimal("100")), productor))
+                .isInstanceOf(ReglaNegocioException.class);
+        verify(externos).consultar(LAT, LON);
+        verify(lotes, never()).save(any());
     }
 
     @Test
