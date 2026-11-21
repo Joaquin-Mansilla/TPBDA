@@ -280,6 +280,50 @@ class AplicacionServiceTest {
     }
 
     @Test
+    void unaAplicacionAnteriorALaSiembraEsC8SinConsultarATratamientos() {
+        AplicacionRequest antes = new AplicacionRequest(1L, 1L, new BigDecimal("1"), new BigDecimal("40"), LocalDate.of(2026, 10, 31));
+
+        ReglaNegocioException e = reglaIncumplida(() -> servicio.registrar(5L, antes, operario));
+
+        assertThat(e.getMotivos()).containsExactly(
+                "C8: La fecha de la aplicación tiene que estar entre la siembra (2026-11-01) y la cosecha estimada (2027-03-31)");
+        verifyNoInteractions(tratamientos);
+        verify(repo, never()).save(any());
+    }
+
+    @Test
+    void unaAplicacionPosteriorALaCosechaEstimadaEsC8() {
+        AplicacionRequest despues = new AplicacionRequest(1L, 1L, new BigDecimal("1"), new BigDecimal("40"), LocalDate.of(2027, 4, 1));
+
+        ReglaNegocioException e = reglaIncumplida(() -> servicio.registrar(5L, despues, operario));
+
+        assertThat(e.getMotivos()).anyMatch(m -> m.startsWith("C8"));
+        verifyNoInteractions(tratamientos);
+    }
+
+    @Test
+    void sePuedeAplicarElDiaDeLaSiembraYElDiaDeLaCosechaEstimada() {
+        when(tratamientos.evaluar(any())).thenReturn(evaluacion(ResultadoEvaluacion.VIABLE, null, List.of()));
+
+        for (LocalDate borde : List.of(LocalDate.of(2026, 11, 1), LocalDate.of(2027, 3, 31))) {
+            AplicacionRequest r = new AplicacionRequest(1L, 1L, new BigDecimal("1"), new BigDecimal("40"), borde);
+            assertThat(servicio.registrar(5L, r, operario).status()).isEqualTo(HttpStatus.CREATED);
+        }
+    }
+
+    @Test
+    void reevaluarUnaPendienteFueraDeLaCampaniaEsC8SinConsultarATratamientos() {
+        Aplicacion fuera = pendiente(100L);
+        fuera.setFecha(LocalDate.of(2027, 5, 1));
+        when(repo.findById(100L)).thenReturn(Optional.of(fuera));
+
+        ReglaNegocioException e = reglaIncumplida(() -> servicio.reevaluar(100L));
+
+        assertThat(e.getMotivos()).anyMatch(m -> m.startsWith("C8"));
+        verifyNoInteractions(tratamientos);
+    }
+
+    @Test
     void unOperarioNoAsignadoNoPuedeRegistrar() {
         assertThatThrownBy(() -> servicio.registrar(5L, pedido(), operarioNoAsignado))
                 .isInstanceOf(AccessDeniedException.class);

@@ -14,19 +14,24 @@ import ar.edu.agro.campos.client.TratamientosClient;
 import ar.edu.agro.campos.dto.CamposDtos.CampaniaRequest;
 import ar.edu.agro.campos.dto.CamposDtos.CampaniaResponse;
 import ar.edu.agro.campos.dto.CamposDtos.CosechaRequest;
+import ar.edu.agro.campos.dto.CamposDtos.MonitoreoRequest;
 import ar.edu.agro.campos.dto.CamposDtos.PerdidaRequest;
 import ar.edu.agro.campos.dto.CamposDtos.SiembraRequest;
 import ar.edu.agro.campos.model.Campania;
 import ar.edu.agro.campos.model.EstadoCampania;
 import ar.edu.agro.campos.model.Establecimiento;
 import ar.edu.agro.campos.model.Lote;
+import ar.edu.agro.campos.model.Monitoreo;
 import ar.edu.agro.campos.repository.CampaniaRepository;
 import ar.edu.agro.campos.repository.MonitoreoRepository;
 import ar.edu.agro.commons.contract.CultivoResumenResponse;
 import ar.edu.agro.commons.error.ReglaNegocioException;
 import ar.edu.agro.commons.security.Roles;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,10 +46,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 class CampaniaServiceTest {
 
     private static final CultivoResumenResponse SOJA = new CultivoResumenResponse(1L, "Soja", "Leguminosa", 150, 10, 12);
+    /** "hoy" fijo para las reglas que comparan con la fecha actual (C8) */
+    private static final Clock RELOJ = Clock.fixed(Instant.parse("2027-06-01T15:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"));
 
     private final Usuario productor = new Usuario("prod-1", Set.of(Roles.PRODUCTOR));
 
     private CampaniaRepository campanias;
+    private MonitoreoRepository monitoreos;
     private TratamientosClient tratamientos;
     private TransactionTemplate tx;
     private CampaniaService servicio;
@@ -78,7 +86,9 @@ class CampaniaServiceTest {
         });
         when(tratamientos.obtenerCultivo(1L)).thenReturn(SOJA);
 
-        servicio = new CampaniaService(campanias, mock(MonitoreoRepository.class), lotes, new AccesoService(), tratamientos, tx);
+        monitoreos = mock(MonitoreoRepository.class);
+        when(monitoreos.save(any(Monitoreo.class))).thenAnswer(i -> i.getArgument(0));
+        servicio = new CampaniaService(campanias, monitoreos, lotes, new AccesoService(), tratamientos, tx, RELOJ, 45);
     }
 
     private Campania existente(Long id, String siembra, String cosecha, EstadoCampania estado) {
@@ -224,6 +234,145 @@ class CampaniaServiceTest {
 
         assertThatThrownBy(() -> servicio.registrarPerdida(30L, new PerdidaRequest(LocalDate.of(2025, 5, 1), "Granizo"), productor))
                 .satisfies(CampaniaServiceTest::esC5);
+    }
+
+    // ------------------------------------------------------------------ C4 y C8: fechas reales (hoy = 2027-06-01)
+
+    private static List<String> motivos(Throwable ex) {
+        assertThat(ex).isInstanceOf(ReglaNegocioException.class);
+        return ((ReglaNegocioException) ex).getMotivos();
+    }
+
+    @Test
+    void laSiembraRealPuedeAtrasarseExactamenteLaTolerancia() {
+        guardada(existente(30L, "2026-10-15", "2027-03-14", EstadoCampania.PLANIFICADA));
+
+        CampaniaResponse r = servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 11, 29)), productor);
+
+        assertThat(r.fechaSiembraReal()).isEqualTo(LocalDate.of(2026, 11, 29));
+    }
+
+    @Test
+    void laSiembraRealQueSeAtrasaUnDiaMasQueLaToleranciaEsC4() {
+        guardada(existente(30L, "2026-10-15", "2027-03-14", EstadoCampania.PLANIFICADA));
+
+        assertThatThrownBy(() -> servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 11, 30)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C4") && m.contains("45 días")));
+        verify(campanias, never()).save(any());
+    }
+
+    @Test
+    void laSiembraRealAdelantadaMasQueLaToleranciaEsC4() {
+        guardada(existente(30L, "2026-12-20", "2027-05-19", EstadoCampania.PLANIFICADA));
+
+        assertThatThrownBy(() -> servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 10, 1)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C4") && m.contains("45 días")));
+    }
+
+    @Test
+    void laSiembraRealFueraDeLaVentanaDelCultivoEsC4() {
+        guardada(existente(30L, "2026-12-20", "2027-05-19", EstadoCampania.PLANIFICADA));
+
+        assertThatThrownBy(() -> servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2027, 1, 10)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C4") && m.contains("ventana")));
+    }
+
+    @Test
+    void unaSiembraConFechaFuturaEsC8() {
+        guardada(existente(30L, "2027-10-15", "2028-03-13", EstadoCampania.PLANIFICADA));
+
+        assertThatThrownBy(() -> servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2027, 10, 20)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).containsExactly("C8: No se puede registrar una siembra con fecha futura"));
+    }
+
+    @Test
+    void laNuevaCosechaEstimadaNoPuedePisarseConOtraCampaniaC1() {
+        Campania esta = guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.PLANIFICADA));
+        delLote.add(existente(31L, "2027-04-10", "2027-09-07", EstadoCampania.PLANIFICADA));
+        delLote.add(esta);
+
+        // con la siembra real del 20/11 la cosecha estimada pasa al 19/04/2027: se pisa con la campaña siguiente
+        assertThatThrownBy(() -> servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 11, 20)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C1")));
+    }
+
+    @Test
+    void sePuedeCosecharElMismoDiaDeLaSiembraYHoy() {
+        guardada(existente(30L, "2027-06-01", "2027-10-29", EstadoCampania.SEMBRADA));
+
+        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 6, 1)), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.COSECHADA);
+    }
+
+    @Test
+    void unaCosechaAnteriorALaSiembraRealEsC8() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2026, 10, 31)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C8") && m.contains("anterior a la siembra")));
+    }
+
+    @Test
+    void unaCosechaConFechaFuturaEsC8() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 6, 2)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).containsExactly("C8: No se puede registrar una cosecha con fecha futura"));
+    }
+
+    @Test
+    void unaPerdidaConFechaFuturaEsC8() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarPerdida(30L, new PerdidaRequest(LocalDate.of(2027, 7, 1), "Granizo"), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C8") && m.contains("futura")));
+    }
+
+    @Test
+    void laPerdidaDeUnaSembradaNoPuedeSerAnteriorALaSiembraReal() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarPerdida(30L, new PerdidaRequest(LocalDate.of(2026, 10, 1), "Granizo"), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C8") && m.contains("anterior a la siembra")));
+    }
+
+    @Test
+    void unaPlanificadaSePuedePerderAntesDeSuFechaDeSiembra() {
+        guardada(existente(30L, "2027-03-01", "2027-07-29", EstadoCampania.PLANIFICADA));
+
+        CampaniaResponse r = servicio.registrarPerdida(30L, new PerdidaRequest(LocalDate.of(2027, 2, 1), "Inundación"), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.PERDIDA);
+    }
+
+    @Test
+    void elMonitoreoSinFechaEsDeHoy() {
+        guardada(existente(30L, "2027-03-01", "2027-07-29", EstadoCampania.SEMBRADA));
+
+        var r = servicio.registrarMonitoreo(30L, new MonitoreoRequest(1L, new BigDecimal("20"), null), productor);
+
+        assertThat(r.fecha()).isEqualTo(LocalDate.of(2027, 6, 1));
+    }
+
+    @Test
+    void elMonitoreoElDiaDeLaSiembraEsValido() {
+        guardada(existente(30L, "2027-03-01", "2027-07-29", EstadoCampania.SEMBRADA));
+
+        var r = servicio.registrarMonitoreo(30L, new MonitoreoRequest(1L, new BigDecimal("20"), LocalDate.of(2027, 3, 1)), productor);
+
+        assertThat(r.fecha()).isEqualTo(LocalDate.of(2027, 3, 1));
+    }
+
+    @Test
+    void unMonitoreoAnteriorALaSiembraOFuturoEsC8() {
+        guardada(existente(30L, "2027-03-01", "2027-07-29", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarMonitoreo(30L, new MonitoreoRequest(1L, new BigDecimal("20"), LocalDate.of(2027, 2, 28)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C8")));
+        assertThatThrownBy(() -> servicio.registrarMonitoreo(30L, new MonitoreoRequest(1L, new BigDecimal("20"), LocalDate.of(2027, 6, 2)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C8")));
+        verify(monitoreos, never()).save(any());
     }
 
     @Test

@@ -21,9 +21,11 @@ import ar.edu.agro.commons.contract.SueloDto;
 import ar.edu.agro.commons.contract.UbicacionDto;
 import ar.edu.agro.commons.error.RecursoNoEncontradoException;
 import ar.edu.agro.commons.error.ServicioNoDisponibleException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -84,6 +86,7 @@ public class AplicacionService {
             motivos.add(new MotivoDto("C2", "La superficie tratada (" + r.superficieTratadaHa()
                     + " ha) supera la sembrada (" + c.getSuperficieSembradaHa() + " ha)"));
         }
+        fueraDeLaCampania(c, r.fecha()).ifPresent(motivos::add);
         if (!motivos.isEmpty()) {
             throw ErroresDeRegla.de("La aplicación no cumple las reglas de la campaña", motivos);
         }
@@ -143,6 +146,10 @@ public class AplicacionService {
     public ResultadoRegistro reevaluar(Long id) {
         Aplicacion a = buscar(id);
         exigirPendiente(a);
+        var fuera = fueraDeLaCampania(a.getCampania(), a.getFecha());
+        if (fuera.isPresent()) {
+            throw ErroresDeRegla.de("La aplicación no cumple las reglas de la campaña", List.of(fuera.get()));
+        }
 
         EvaluacionResponse ev = tratamientos.evaluar(armarPedido(a.getCampania(), a));
 
@@ -198,6 +205,19 @@ public class AplicacionService {
     }
 
     // ------------------------------------------------------------------ auxiliares
+
+    /**
+     * C8: la aplicación tiene que caer entre la siembra real y la cosecha estimada (inclusive). Sí puede ser futura:
+     * una aplicación se planifica, por eso no se compara con hoy.
+     */
+    private static Optional<MotivoDto> fueraDeLaCampania(Campania c, LocalDate fecha) {
+        LocalDate desde = CampaniaService.siembraEfectiva(c);
+        if (ReglasCampania.c8DentroDe(fecha, desde, c.getCosechaEstimada())) {
+            return Optional.empty();
+        }
+        return Optional.of(new MotivoDto("C8", "La fecha de la aplicación tiene que estar entre la siembra (" + desde
+                + ") y la cosecha estimada (" + c.getCosechaEstimada() + ")"));
+    }
 
     private Aplicacion buscar(Long id) {
         return aplicaciones.findById(id)

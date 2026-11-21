@@ -2,10 +2,11 @@ package ar.edu.agro.campos.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
- * Reglas C1 a C4 sin base de datos ni Spring, para probarlas con casos normales, límites y rechazos.
+ * Reglas C1 a C4 y C8 (fechas) sin base de datos ni Spring, para probarlas con casos normales, límites y rechazos.
  * (C5, las transiciones de estado, las conoce EstadoCampania.)
  * (C6, la pertenencia, está en AccesoService; L1 y A1 en los servicios de lote y aplicación.)
  */
@@ -40,5 +41,20 @@ public final class ReglasCampania {
     public static boolean c4DentroDeVentana(LocalDate fechaSiembra, int mesDesde, int mesHasta) {
         int mes = fechaSiembra.getMonthValue();
         return mesDesde <= mesHasta ? (mes >= mesDesde && mes <= mesHasta) : (mes >= mesDesde || mes <= mesHasta);
+    }
+
+    /** C4: la siembra real no puede apartarse de la planificada más de toleranciaDias (para adelante o para atrás). */
+    public static boolean c4DentroDeTolerancia(LocalDate planificada, LocalDate real, int toleranciaDias) {
+        return Math.abs(ChronoUnit.DAYS.between(planificada, real)) <= toleranciaDias;
+    }
+
+    /** C8: lo que ya ocurrió (siembra, cosecha, pérdida, monitoreo) no puede tener fecha futura. */
+    public static boolean c8NoEsFutura(LocalDate fecha, LocalDate hoy) {
+        return !fecha.isAfter(hoy);
+    }
+
+    /** C8: la fecha tiene que caer dentro del período, con los dos extremos incluidos. */
+    public static boolean c8DentroDe(LocalDate fecha, LocalDate desde, LocalDate hasta) {
+        return !fecha.isBefore(desde) && !fecha.isAfter(hasta);
     }
 }
