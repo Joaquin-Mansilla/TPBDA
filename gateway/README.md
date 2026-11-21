@@ -28,7 +28,9 @@ Los roles salen de `realm_access.roles` y se convierten en `ROLE_*` con `Keycloa
 | GET de campos y catálogo (`/establecimientos`, `/lotes`, `/campanias`, `/aplicaciones`, `/cultivos`, `/plagas`, `/agroquimicos`) | sí | sí | sí |
 | GET `/evaluaciones/{id}` | no | no | sí |
 | POST `/evaluaciones` (lo usa ms-campos con el token del usuario) | sí | sí | sí |
-| Establecimientos y campañas: POST, PUT, PATCH, DELETE (incluye `POST /establecimientos/{id}/lotes`, `POST /lotes/{id}/campanias`, `PATCH /campanias/{id}/estado`) | sí | no | no |
+| Establecimientos: POST, PUT, PATCH, DELETE (incluye `POST /establecimientos/{id}/lotes`) | sí | no | no |
+| Campañas: POST, PUT, DELETE (incluye `POST /lotes/{id}/campanias` y las acciones `POST /campanias/{id}/siembra`, `/cosecha` y `/perdida`) | sí | no | no |
+| Campañas: PATCH (el estado ya no se manda a mano, T16) | no | no | no |
 | `PATCH /lotes/{id}/suelo`, `POST /lotes/{id}/suelo/refrescar` | no | no | sí |
 | Monitoreos (`/campanias/{id}/monitoreos`): POST | sí | sí | no |
 | Monitoreos: PUT, PATCH, DELETE | sí | no | no |
@@ -41,7 +43,10 @@ Los nombres de los endpoints (`/autorizacion`, `/reevaluacion`, `/suelo`, `/suel
 y los implementan ms-campos y ms-tratamientos (T07). Cada microservicio vuelve a controlar el rol con `@PreAuthorize`.
 Supuesto para revisar en el grupo: que el OPERARIO no edite ni borre monitoreos.
 
-Tests: `mvn test` en `gateway/` (no necesitan Keycloak ni los microservicios).
+Tests: `mvn test` en `gateway/` (no necesitan Keycloak ni los microservicios). Si los contenedores están
+prendidos, correrlos con los servicios apuntando a un puerto vacío
+(`CAMPOS_URL=http://localhost:1 TRATAMIENTOS_URL=http://localhost:1 mvn test`): si no, el gateway del test reenvía
+los pedidos permitidos a los microservicios reales y responden 401.
 `SecurityConfigTest` recorre la matriz; `KeycloakJwtConverterTest` prueba la conversión de roles.
 
 Prueba a mano (con el compose levantado y `$TOKEN` de `productor1`):

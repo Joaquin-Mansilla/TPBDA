@@ -40,7 +40,7 @@ Contenido: `ms-campos/` y `ms-tratamientos/` completos (reemplazar las carpetas)
 - **No se compiló ni se corrió nada** (sin acceso a Maven Central). Hay que correr `mvn clean install` en `agro-commons` y después `mvn test` en cada servicio. Lo más probable: algún import o detalle de versión.
 - Correr **una vez** `PROBAR_APIS_REALES=true mvn test -Dtest=ApisExternasRealesTest` en ms-campos (confirma los nombres de campo de SoilGrids y Georef).
 - Resolver una pendiente cuya campaña ya no está SEMBRADA (cosechada o perdida) hoy se permite. Si el grupo prefiere bloquearlo (C5), es un `if` en `reevaluar` y `autorizar`.
-- `LoteService.crear` consulta las APIs externas dentro de una transacción (puede tardar hasta unos 20 s con reintento). Funciona, pero retiene una conexión de la base durante ese tiempo.
+- `LoteService.crear` consulta las APIs externas dentro de una transacción (puede tardar hasta unos 20 s con reintento). Funciona, pero retiene una conexión de la base durante ese tiempo. **Resuelto en la T16:** planificar, crear lote, refrescar suelo y sembrar consultan fuera de la transacción y guardan en una transacción corta.
 - `agro-commons`: sigue pendiente que `GlobalExceptionHandler` devuelva 404/405/400 (hoy 500) para rutas inexistentes, método incorrecto o parámetro faltante. ms-campos ya cubre el parámetro con tipo inválido.
 - Si el repo ya tenía cambios posteriores a T07 en `agro-commons`, hay que revisar que `EvaluacionRequest`/`EvaluacionResponse` sigan como en la versión del 31/10.
 

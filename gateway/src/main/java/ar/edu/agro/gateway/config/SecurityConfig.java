@@ -65,10 +65,11 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.POST, "/api/v1/campanias/*/aplicaciones").hasAnyRole(PRODUCTOR, OPERARIO)
                 .pathMatchers(HttpMethod.POST, "/api/v1/aplicaciones/*/autorizacion", "/api/v1/aplicaciones/*/reevaluacion").hasRole(AGRONOMO)
 
+                // Las campañas cambian de estado con POST /campanias/{id}/siembra, /cosecha y /perdida (T16): no hay PATCH.
                 // Establecimientos y campañas: los gestiona el PRODUCTOR
                 .pathMatchers(HttpMethod.POST, "/api/v1/establecimientos/**", "/api/v1/campanias/**").hasRole(PRODUCTOR)
                 .pathMatchers(HttpMethod.PUT, "/api/v1/establecimientos/**", "/api/v1/campanias/**").hasRole(PRODUCTOR)
-                .pathMatchers(HttpMethod.PATCH, "/api/v1/establecimientos/**", "/api/v1/campanias/**").hasRole(PRODUCTOR)
+                .pathMatchers(HttpMethod.PATCH, "/api/v1/establecimientos/**").hasRole(PRODUCTOR)
                 .pathMatchers(HttpMethod.DELETE, "/api/v1/establecimientos/**", "/api/v1/campanias/**").hasRole(PRODUCTOR)
 
                 // Lotes: el suelo (cargar a mano o refrescar desde las APIs externas) es del AGRONOMO;

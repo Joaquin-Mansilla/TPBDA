@@ -31,6 +31,8 @@ management:
         include: health
 
 agro:
+  campanias:
+    tolerancia-siembra-dias: 45   # cuánto puede adelantarse o atrasarse la siembra real respecto de la planificada
   # Cliente hacia ms-tratamientos (reenvía el token del usuario). Ver docs/cliente-tratamientos.md
   tratamientos:
     url-base: ${TRATAMIENTOS_URL:http://localhost:8082}

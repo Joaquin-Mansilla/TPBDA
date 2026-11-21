@@ -1,9 +1,35 @@
 {
   "info": {
     "name": "TPBDA · Pruebas integrales",
-    "description": "Pruebas integrales del TPI Backend agro por el gateway (T07 a T12). Ver postman/README.md.",
+    "description": "Pruebas integrales del TPI Backend agro por el gateway (T07 a T12 y correcciones de la T16). Ver postman/README.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Fechas relativas a hoy para las reglas que comparan con la fecha actual (T16: C4, C8).",
+          "// Se usa la fecha LOCAL: con toISOString (UTC) después de las 21 h de Argentina \"hoy\" sería mañana.",
+          "const dia = (n) => {",
+          "    const d = new Date();",
+          "    d.setDate(d.getDate() + n);",
+          "    const dd = (x) => String(x).padStart(2, \"0\");",
+          "    return d.getFullYear() + \"-\" + dd(d.getMonth() + 1) + \"-\" + dd(d.getDate());",
+          "};",
+          "pm.collectionVariables.set(\"hoy\", dia(0));",
+          "pm.collectionVariables.set(\"hoyMenos1\", dia(-1));",
+          "pm.collectionVariables.set(\"hoyMenos60\", dia(-60));",
+          "pm.collectionVariables.set(\"hoyMas3\", dia(3));",
+          "pm.collectionVariables.set(\"hoyMas10\", dia(10));",
+          "pm.collectionVariables.set(\"hoyMas150\", dia(150));",
+          "pm.collectionVariables.set(\"hoyMas200\", dia(200));",
+          "pm.collectionVariables.set(\"hoyMas365\", dia(365));"
+        ]
+      }
+    }
+  ],
   "item": [
     {
       "name": "00 · Tokens",
@@ -514,8 +540,8 @@
       ]
     },
     {
-      "name": "03 · Recorrido completo con datos nuevos (T07, T09, T11)",
-      "description": "Crea sus propios datos: se puede correr las veces que se quiera.",
+      "name": "03 · Recorrido completo con datos nuevos (T07, T09, T11, T16)",
+      "description": "Crea sus propios datos: se puede correr las veces que se quiera. Usa fechas relativas a hoy ({{hoy}}, {{hoyMas3}}, ...).\n\nNota: planifica y siembra soja HOY, y la ventana de siembra de la soja es de octubre a diciembre. Si se corre de enero a septiembre, las requests de planificar y sembrar dan 422 C4: hay que cambiar a un cultivo cuya ventana incluya el mes actual (por ejemplo maíz, cultivoId 2, septiembre a diciembre; trigo, cultivoId 3, mayo a julio) y ajustar las fechas de C1, C4 y la cosecha esperada (hoyMas150 es el ciclo de la soja).",
       "item": [
         {
           "name": "201 · Productor crea un establecimiento",
@@ -540,7 +566,7 @@
             "url": "{{baseUrl}}/establecimientos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"nombre\": \"Establecimiento Postman {{$timestamp}}\"\n}",
+              "raw": "{\n  \"nombre\": \"Establecimiento Postman {{$timestamp}}\",\n  \"latitudMin\": -32.71,\n  \"latitudMax\": -32.69,\n  \"longitudMin\": -62.11,\n  \"longitudMax\": -62.09\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -555,7 +581,56 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Tiene superficie\", () => pm.expect(Number(pm.response.json().superficieHa)).to.be.above(0));",
+                  "pm.test(\"Toda la superficie está libre\", () => pm.expect(Number(pm.response.json().superficieLibreHa)).to.eql(Number(pm.response.json().superficieHa)));",
                   "pm.collectionVariables.set(\"establecimientoId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Lote fuera del establecimiento (C2)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{establecimientoId}}/lotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote afuera\",\n  \"latitud\": -33.5,\n  \"longitud\": -62.1,\n  \"superficieHa\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C2 (fuera de los límites)\", () => {",
+                  "    const detalles = pm.response.json().detalles || [];",
+                  "    pm.expect(detalles.some(d => String(d).startsWith(\"C2:\") && String(d).includes(\"fuera de los límites\"))).to.be.true;",
+                  "});"
                 ]
               }
             }
@@ -602,6 +677,53 @@
                   "// SoilGrids y Georef pueden no responder: SIN_DATOS también es correcto (L1).",
                   "pm.test(\"Estado de suelo OK o SIN_DATOS\", () => pm.expect([\"OK\", \"SIN_DATOS\"]).to.include(pm.response.json().estadoSuelo));",
                   "pm.collectionVariables.set(\"loteId\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Los lotes superan la superficie del establecimiento (C2)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{establecimientoId}}/lotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote enorme\",\n  \"latitud\": -32.7,\n  \"longitud\": -62.1,\n  \"superficieHa\": 400\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C2 (supera la del establecimiento)\", () => {",
+                  "    const detalles = pm.response.json().detalles || [];",
+                  "    pm.expect(detalles.some(d => String(d).startsWith(\"C2:\") && String(d).includes(\"supera la del establecimiento\"))).to.be.true;",
+                  "});"
                 ]
               }
             }
@@ -674,7 +796,7 @@
             "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 40,\n  \"fechaSiembra\": \"2027-10-15\"\n}",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 40,\n  \"fechaSiembra\": \"{{hoy}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -719,7 +841,7 @@
             "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"2027-11-01\"\n}",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"{{hoyMas10}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -767,7 +889,7 @@
             "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 60,\n  \"fechaSiembra\": \"2028-10-15\"\n}",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 60,\n  \"fechaSiembra\": \"{{hoyMas365}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -815,7 +937,7 @@
             "url": "{{baseUrl}}/lotes/{{loteId}}/campanias",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"2028-06-15\"\n}",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"{{hoyMas200}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -841,9 +963,9 @@
           ]
         },
         {
-          "name": "200 · Pasar la campaña a SEMBRADA",
+          "name": "422 · Siembra real fuera de tolerancia (C4)",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -860,10 +982,58 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/campanias/{{campaniaId}}/estado",
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/siembra",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado\": \"SEMBRADA\"\n}",
+              "raw": "{\n  \"fecha\": \"{{hoyMenos60}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "La siembra real se aparta 60 días de la planificada (hoy); la tolerancia es de 45."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C4 (se aparta más de 45 días)\", () => {",
+                  "    const detalles = pm.response.json().detalles || [];",
+                  "    pm.expect(detalles.some(d => String(d).startsWith(\"C4:\") && String(d).includes(\"se aparta más de 45 días\"))).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Registrar la siembra",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/siembra",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -878,16 +1048,18 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));"
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));",
+                  "pm.test(\"Guarda la siembra real\", () => pm.expect(pm.response.json().fechaSiembraReal).to.eql(pm.collectionVariables.get(\"hoy\")));",
+                  "pm.test(\"Recalcula la cosecha estimada (soja: 150 días)\", () => pm.expect(pm.response.json().cosechaEstimada).to.eql(pm.collectionVariables.get(\"hoyMas150\")));"
                 ]
               }
             }
           ]
         },
         {
-          "name": "422 · Volver de SEMBRADA a PLANIFICADA (C5)",
+          "name": "422 · Sembrar otra vez (C5)",
           "request": {
-            "method": "PATCH",
+            "method": "POST",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -904,10 +1076,10 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/campanias/{{campaniaId}}/estado",
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/siembra",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"estado\": \"PLANIFICADA\"\n}",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -955,7 +1127,7 @@
             "url": "{{baseUrl}}/campanias/{{campaniaId}}/monitoreos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"plagaId\": 1,\n  \"incidenciaPct\": 20,\n  \"fecha\": \"2027-11-10\"\n}",
+              "raw": "{\n  \"plagaId\": 1,\n  \"incidenciaPct\": 20,\n  \"fecha\": \"{{hoy}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -971,6 +1143,54 @@
                 "exec": [
                   "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
                   "pm.test(\"Devuelve id\", () => pm.expect(pm.response.json().id).to.be.a(\"number\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Aplicación antes de la siembra (C8)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/aplicaciones",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 30,\n  \"fecha\": \"{{hoyMenos1}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C8\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C8\");",
+                  "});"
                 ]
               }
             }
@@ -999,7 +1219,7 @@
             "url": "{{baseUrl}}/campanias/{{campaniaId}}/aplicaciones",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 30,\n  \"fecha\": \"2027-11-20\"\n}",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 30,\n  \"fecha\": \"{{hoyMas3}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1050,6 +1270,99 @@
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Es la evaluación pedida\", () => pm.expect(String(pm.response.json().evaluacion.id)).to.eql(String(pm.collectionVariables.get(\"evaluacionId\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 · Registrar la cosecha",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/cosecha",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"COSECHADA\", () => pm.expect(pm.response.json().estado).to.eql(\"COSECHADA\"));",
+                  "pm.test(\"Guarda la fecha de cosecha\", () => pm.expect(pm.response.json().fechaCosecha).to.eql(pm.collectionVariables.get(\"hoy\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "422 · Cosechar otra vez (C5)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{campaniaId}}/cosecha",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"Motivo C5\", () => {",
+                  "    const b = pm.response.json();",
+                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "    pm.expect(reglas).to.include(\"C5\");",
+                  "});"
                 ]
               }
             }
@@ -1836,6 +2149,38 @@
     },
     {
       "key": "aplicacionPendienteId",
+      "value": ""
+    },
+    {
+      "key": "hoy",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos1",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos60",
+      "value": ""
+    },
+    {
+      "key": "hoyMas3",
+      "value": ""
+    },
+    {
+      "key": "hoyMas10",
+      "value": ""
+    },
+    {
+      "key": "hoyMas150",
+      "value": ""
+    },
+    {
+      "key": "hoyMas200",
+      "value": ""
+    },
+    {
+      "key": "hoyMas365",
       "value": ""
     }
   ]

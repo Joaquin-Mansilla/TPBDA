@@ -1,12 +1,16 @@
 package ar.edu.agro.campos.service;
 
 import ar.edu.agro.commons.error.RecursoNoEncontradoException;
+import ar.edu.agro.commons.error.SolicitudInvalidaException;
 import ar.edu.agro.campos.dto.CamposDtos.*;
 import ar.edu.agro.campos.model.Establecimiento;
+import ar.edu.agro.campos.model.GeometriaCampo;
+import ar.edu.agro.campos.model.Lote;
 import ar.edu.agro.campos.repository.EstablecimientoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.TreeSet;
@@ -22,12 +26,21 @@ public class EstablecimientoService {
         this.acceso = acceso;
     }
 
-    /** F01: quien lo crea queda como dueño. */
+    /** F01: quien lo crea queda como dueño. Sus hectáreas salen del rectángulo de coordenadas (T16). */
     @Transactional
     public EstablecimientoResponse crear(EstablecimientoRequest r, Usuario u) {
+        if (r.latitudMin().compareTo(r.latitudMax()) >= 0 || r.longitudMin().compareTo(r.longitudMax()) >= 0) {
+            throw new SolicitudInvalidaException("Los límites del establecimiento no forman un rectángulo: "
+                    + "latitudMin tiene que ser menor que latitudMax y longitudMin menor que longitudMax");
+        }
         Establecimiento e = new Establecimiento();
         e.setNombre(r.nombre());
         e.setProductorSub(u.sub());
+        e.setLatitudMin(r.latitudMin());
+        e.setLatitudMax(r.latitudMax());
+        e.setLongitudMin(r.longitudMin());
+        e.setLongitudMax(r.longitudMax());
+        e.setSuperficieHa(GeometriaCampo.superficieHa(e.rectangulo()));
         if (r.operarios() != null) {
             e.setOperarios(new HashSet<>(r.operarios()));
         }
@@ -62,7 +75,10 @@ public class EstablecimientoService {
     }
 
     private EstablecimientoResponse aRespuesta(Establecimiento e) {
+        BigDecimal ocupada = e.getLotes().stream().map(Lote::getSuperficieHa).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal libre = e.getSuperficieHa() == null ? null : e.getSuperficieHa().subtract(ocupada);
         return new EstablecimientoResponse(e.getId(), e.getNombre(), e.getProductorSub(), new TreeSet<>(e.getOperarios()),
-                e.getLotes().stream().map(l -> new LoteResumen(l.getId(), l.getNombre(), l.getSuperficieHa(), l.getEstadoSuelo())).toList());
+                e.getLotes().stream().map(l -> new LoteResumen(l.getId(), l.getNombre(), l.getSuperficieHa(), l.getEstadoSuelo())).toList(),
+                e.getLatitudMin(), e.getLatitudMax(), e.getLongitudMin(), e.getLongitudMax(), e.getSuperficieHa(), libre);
     }
 }

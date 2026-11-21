@@ -1,6 +1,5 @@
 package ar.edu.agro.campos.service;
 
-import ar.edu.agro.campos.model.EstadoCampania;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -80,19 +79,39 @@ class ReglasCampaniaTest {
         assertThat(ReglasCampania.c4DentroDeVentana(d("2026-06-15"), 11, 2)).isFalse();
     }
 
-    // C5
+    // C4: siembra real respecto de la planificada
     @Test
-    void c5_transicionesPermitidas() {
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.PLANIFICADA, EstadoCampania.SEMBRADA)).isTrue();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.SEMBRADA, EstadoCampania.COSECHADA)).isTrue();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.SEMBRADA, EstadoCampania.PERDIDA)).isTrue();
+    void c4_laSiembraRealPuedeApartarseHastaLaToleranciaEnLosDosSentidos() {
+        assertThat(ReglasCampania.c4DentroDeTolerancia(d("2026-10-15"), d("2026-10-15"), 45)).isTrue();
+        assertThat(ReglasCampania.c4DentroDeTolerancia(d("2026-10-15"), d("2026-11-29"), 45)).isTrue();
+        assertThat(ReglasCampania.c4DentroDeTolerancia(d("2026-10-15"), d("2026-08-31"), 45)).isTrue();
     }
 
     @Test
-    void c5_transicionesRechazadas() {
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.SEMBRADA, EstadoCampania.SEMBRADA)).isFalse();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.PLANIFICADA, EstadoCampania.COSECHADA)).isFalse();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.COSECHADA, EstadoCampania.SEMBRADA)).isFalse();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.PERDIDA, EstadoCampania.SEMBRADA)).isFalse();
+    void c4_unDiaMasQueLaToleranciaSeRechaza() {
+        assertThat(ReglasCampania.c4DentroDeTolerancia(d("2026-10-15"), d("2026-11-30"), 45)).isFalse();
+        assertThat(ReglasCampania.c4DentroDeTolerancia(d("2026-10-15"), d("2026-08-30"), 45)).isFalse();
+        assertThat(ReglasCampania.c4DentroDeTolerancia(d("2026-10-15"), d("2025-10-15"), 45)).isFalse();
+    }
+
+    // C8
+    @Test
+    void c8_hoyNoEsFuturoYMananaSi() {
+        assertThat(ReglasCampania.c8NoEsFutura(d("2026-11-21"), d("2026-11-21"))).isTrue();
+        assertThat(ReglasCampania.c8NoEsFutura(d("2026-11-20"), d("2026-11-21"))).isTrue();
+        assertThat(ReglasCampania.c8NoEsFutura(d("2026-11-22"), d("2026-11-21"))).isFalse();
+    }
+
+    @Test
+    void c8_dentroDelPeriodoConLosExtremosIncluidos() {
+        assertThat(ReglasCampania.c8DentroDe(d("2026-11-01"), d("2026-11-01"), d("2027-03-31"))).isTrue();
+        assertThat(ReglasCampania.c8DentroDe(d("2027-03-31"), d("2026-11-01"), d("2027-03-31"))).isTrue();
+        assertThat(ReglasCampania.c8DentroDe(d("2027-01-10"), d("2026-11-01"), d("2027-03-31"))).isTrue();
+    }
+
+    @Test
+    void c8_fueraDelPeriodoSeRechaza() {
+        assertThat(ReglasCampania.c8DentroDe(d("2026-10-31"), d("2026-11-01"), d("2027-03-31"))).isFalse();
+        assertThat(ReglasCampania.c8DentroDe(d("2027-04-01"), d("2026-11-01"), d("2027-03-31"))).isFalse();
     }
 }

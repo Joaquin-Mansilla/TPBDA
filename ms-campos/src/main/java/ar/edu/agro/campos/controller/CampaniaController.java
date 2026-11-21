@@ -34,19 +34,50 @@ public class CampaniaController {
         return campanias.obtener(id, Usuario.de(jwt));
     }
 
-    @PatchMapping("/{id}/estado")
+    @PostMapping("/{id}/siembra")
     @PreAuthorize("hasRole('PRODUCTOR')")
-    @Operation(summary = "Marcar la campaña como sembrada, cosechada o perdida con motivo (F05, C5)")
+    @Operation(summary = "Registrar la siembra real: la campaña pasa a SEMBRADA y se recalcula la cosecha estimada (F05, C4, C5, C8)")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Estado actualizado"),
+            @ApiResponse(responseCode = "200", description = "Campaña SEMBRADA"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos"),
             @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
             @ApiResponse(responseCode = "404", description = "No existe la campaña"),
             @ApiResponse(responseCode = "409", description = "Otro usuario la modificó al mismo tiempo"),
-            @ApiResponse(responseCode = "422", description = "Transición no permitida o falta el motivo de pérdida (C5)")
+            @ApiResponse(responseCode = "422", description = "No está PLANIFICADA (C5) o la fecha no es válida (C1, C4, C8)"),
+            @ApiResponse(responseCode = "503", description = "ms-tratamientos no disponible (hace falta el ciclo del cultivo)")
     })
-    public CampaniaResponse cambiarEstado(@PathVariable Long id, @Valid @RequestBody CambioEstadoRequest r, @AuthenticationPrincipal Jwt jwt) {
-        return campanias.cambiarEstado(id, r, Usuario.de(jwt));
+    public CampaniaResponse siembra(@PathVariable Long id, @Valid @RequestBody SiembraRequest r, @AuthenticationPrincipal Jwt jwt) {
+        return campanias.registrarSiembra(id, r, Usuario.de(jwt));
+    }
+
+    @PostMapping("/{id}/cosecha")
+    @PreAuthorize("hasRole('PRODUCTOR')")
+    @Operation(summary = "Registrar la cosecha: la campaña pasa a COSECHADA (F05, C5, C8)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Campaña COSECHADA"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos"),
+            @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
+            @ApiResponse(responseCode = "404", description = "No existe la campaña"),
+            @ApiResponse(responseCode = "409", description = "Otro usuario la modificó al mismo tiempo"),
+            @ApiResponse(responseCode = "422", description = "No está SEMBRADA (C5) o la fecha no es válida (C8)")
+    })
+    public CampaniaResponse cosecha(@PathVariable Long id, @Valid @RequestBody CosechaRequest r, @AuthenticationPrincipal Jwt jwt) {
+        return campanias.registrarCosecha(id, r, Usuario.de(jwt));
+    }
+
+    @PostMapping("/{id}/perdida")
+    @PreAuthorize("hasRole('PRODUCTOR')")
+    @Operation(summary = "Marcar la campaña como perdida, con fecha y motivo (F05, C5, C8)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Campaña PERDIDA"),
+            @ApiResponse(responseCode = "400", description = "Datos inválidos o falta el motivo"),
+            @ApiResponse(responseCode = "403", description = "Solo el productor dueño (C6)"),
+            @ApiResponse(responseCode = "404", description = "No existe la campaña"),
+            @ApiResponse(responseCode = "409", description = "Otro usuario la modificó al mismo tiempo"),
+            @ApiResponse(responseCode = "422", description = "Ya está COSECHADA o PERDIDA (C5) o la fecha no es válida (C8)")
+    })
+    public CampaniaResponse perdida(@PathVariable Long id, @Valid @RequestBody PerdidaRequest r, @AuthenticationPrincipal Jwt jwt) {
+        return campanias.registrarPerdida(id, r, Usuario.de(jwt));
     }
 
     @PostMapping("/{id}/monitoreos")
