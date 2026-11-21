@@ -11,10 +11,14 @@ import ar.edu.agro.campos.repository.CampaniaRepository;
 import ar.edu.agro.campos.repository.MonitoreoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /** Campañas (F04, F05) y monitoreos (F06). Reglas C1 a C5; la colaboración con ms-tratamientos es para el cultivo. */
 @Service
@@ -25,65 +29,91 @@ public class CampaniaService {
     private final LoteService lotes;
     private final AccesoService acceso;
     private final TratamientosClient tratamientos;
+    private final TransactionTemplate tx;
 
     public CampaniaService(CampaniaRepository campanias, MonitoreoRepository monitoreos, LoteService lotes,
-                           AccesoService acceso, TratamientosClient tratamientos) {
+                           AccesoService acceso, TratamientosClient tratamientos, TransactionTemplate tx) {
         this.campanias = campanias;
         this.monitoreos = monitoreos;
         this.lotes = lotes;
         this.acceso = acceso;
         this.tratamientos = tratamientos;
+        this.tx = tx;
     }
 
     /**
      * F04. Pide el cultivo a ms-tratamientos (si no responde: 503 y la campaña no se crea) y valida C1 a C4.
      * Se informan todas las reglas incumplidas juntas.
+     *
+     * Primero se lee y se consulta a ms-tratamientos SIN transacción; recién después se abre una transacción corta
+     * para volver a leer las campañas del lote, validar y guardar (no se retiene una conexión mientras se espera).
      */
-    @Transactional
     public CampaniaResponse planificar(Long loteId, CampaniaRequest r, Usuario u) {
         Lote lote = lotes.buscar(loteId);
         acceso.exigirDueno(lote.getEstablecimiento(), u);
         CultivoResumenResponse cultivo = tratamientos.obtenerCultivo(r.cultivoId());
         LocalDate cosecha = r.fechaSiembra().plusDays(cultivo.diasCiclo());
 
-        // las campañas perdidas no ocupan el lote ni cuentan para la rotación
-        List<Campania> vigentes = campanias.findByLoteIdOrderByFechaSiembraDesc(loteId).stream()
-                .filter(c -> c.getEstado() != EstadoCampania.PERDIDA).toList();
-        List<MotivoDto> motivos = new ArrayList<>();
+        // familias de las dos campañas anteriores (C3): también vienen de ms-tratamientos, así que se piden acá
+        Map<Long, String> familias = new HashMap<>();
+        familias.put(cultivo.id(), cultivo.familia());
+        for (Campania anterior : anteriores(vigentes(loteId), r.fechaSiembra())) {
+            familias.computeIfAbsent(anterior.getCultivoId(), id -> tratamientos.obtenerCultivo(id).familia());
+        }
 
-        if (ReglasCampania.c1Superpone(r.fechaSiembra(), cosecha, vigentes.stream()
-                .map(c -> new ReglasCampania.Rango(c.getFechaSiembra(), c.getCosechaEstimada())).toList())) {
-            motivos.add(new MotivoDto("C1", "Las fechas se superponen con otra campaña del lote"));
-        }
-        if (!ReglasCampania.c2SuperficieValida(r.superficieSembradaHa(), lote.getSuperficieHa())) {
-            motivos.add(new MotivoDto("C2", "La superficie sembrada (" + r.superficieSembradaHa()
-                    + " ha) supera la del lote (" + lote.getSuperficieHa() + " ha)"));
-        }
-        List<Campania> anteriores = vigentes.stream().filter(c -> c.getFechaSiembra().isBefore(r.fechaSiembra())).limit(2).toList();
-        if (anteriores.size() == 2) {
-            List<String> familias = anteriores.stream()
-                    .map(c -> tratamientos.obtenerCultivo(c.getCultivoId()).familia()).toList();
-            if (!ReglasCampania.c3RotacionValida(cultivo.familia(), familias)) {
-                motivos.add(new MotivoDto("C3", "Ya hubo dos campañas seguidas de la familia " + cultivo.familia() + " en este lote"));
+        return tx.execute(estado -> {
+            // se vuelve a leer por si otra campaña se planificó mientras se esperaba a ms-tratamientos
+            List<Campania> vigentes = vigentes(loteId);
+            List<MotivoDto> motivos = new ArrayList<>();
+
+            if (ReglasCampania.c1Superpone(r.fechaSiembra(), cosecha, rangos(vigentes))) {
+                motivos.add(new MotivoDto("C1", "Las fechas se superponen con otra campaña del lote"));
             }
-        }
-        if (!ReglasCampania.c4DentroDeVentana(r.fechaSiembra(), cultivo.mesSiembraDesde(), cultivo.mesSiembraHasta())) {
-            motivos.add(new MotivoDto("C4", "La fecha de siembra está fuera de la ventana del cultivo (meses "
-                    + cultivo.mesSiembraDesde() + " a " + cultivo.mesSiembraHasta() + ")"));
-        }
-        if (!motivos.isEmpty()) {
-            throw ErroresDeRegla.de("La campaña no cumple las reglas de planificación", motivos);
-        }
+            if (!ReglasCampania.c2SuperficieValida(r.superficieSembradaHa(), lote.getSuperficieHa())) {
+                motivos.add(new MotivoDto("C2", "La superficie sembrada (" + r.superficieSembradaHa()
+                        + " ha) supera la del lote (" + lote.getSuperficieHa() + " ha)"));
+            }
+            List<Campania> anteriores = anteriores(vigentes, r.fechaSiembra());
+            if (anteriores.size() == 2) {
+                // una campaña creada en el medio con un cultivo que no se consultó no tiene familia conocida: no cuenta
+                List<String> familiasAnteriores = anteriores.stream()
+                        .map(c -> familias.get(c.getCultivoId())).filter(Objects::nonNull).toList();
+                if (!ReglasCampania.c3RotacionValida(cultivo.familia(), familiasAnteriores)) {
+                    motivos.add(new MotivoDto("C3", "Ya hubo dos campañas seguidas de la familia " + cultivo.familia() + " en este lote"));
+                }
+            }
+            if (!ReglasCampania.c4DentroDeVentana(r.fechaSiembra(), cultivo.mesSiembraDesde(), cultivo.mesSiembraHasta())) {
+                motivos.add(new MotivoDto("C4", "La fecha de siembra está fuera de la ventana del cultivo (meses "
+                        + cultivo.mesSiembraDesde() + " a " + cultivo.mesSiembraHasta() + ")"));
+            }
+            if (!motivos.isEmpty()) {
+                throw ErroresDeRegla.de("La campaña no cumple las reglas de planificación", motivos);
+            }
 
-        Campania c = new Campania();
-        c.setLote(lote);
-        c.setCultivoId(r.cultivoId());
-        c.setSuperficieSembradaHa(r.superficieSembradaHa());
-        c.setFechaSiembra(r.fechaSiembra());
-        c.setCosechaEstimada(cosecha);
-        c.setEstado(EstadoCampania.PLANIFICADA);
-        campanias.save(c);
-        return aRespuesta(c);
+            Campania c = new Campania();
+            c.setLote(lote);
+            c.setCultivoId(r.cultivoId());
+            c.setSuperficieSembradaHa(r.superficieSembradaHa());
+            c.setFechaSiembra(r.fechaSiembra());
+            c.setCosechaEstimada(cosecha);
+            c.setEstado(EstadoCampania.PLANIFICADA);
+            campanias.save(c);
+            return aRespuesta(c);
+        });
+    }
+
+    /** Las campañas perdidas no ocupan el lote ni cuentan para la rotación. */
+    private List<Campania> vigentes(Long loteId) {
+        return campanias.findByLoteIdOrderByFechaSiembraDesc(loteId).stream()
+                .filter(c -> c.getEstado() != EstadoCampania.PERDIDA).toList();
+    }
+
+    private static List<Campania> anteriores(List<Campania> vigentes, LocalDate fechaSiembra) {
+        return vigentes.stream().filter(c -> c.getFechaSiembra().isBefore(fechaSiembra)).limit(2).toList();
+    }
+
+    private static List<ReglasCampania.Rango> rangos(List<Campania> campanias) {
+        return campanias.stream().map(c -> new ReglasCampania.Rango(c.getFechaSiembra(), c.getCosechaEstimada())).toList();
     }
 
     @Transactional(readOnly = true)

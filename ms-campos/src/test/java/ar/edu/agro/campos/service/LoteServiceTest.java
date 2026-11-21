@@ -3,7 +3,10 @@ package ar.edu.agro.campos.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ar.edu.agro.campos.client.ClasificadorTextura;
@@ -29,7 +32,10 @@ import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** Creación de lotes con las APIs externas (T09 integrada) y carga manual del suelo. */
 class LoteServiceTest {
@@ -43,12 +49,15 @@ class LoteServiceTest {
     private LoteRepository lotes;
     private DatosExternosService externos;
     private LoteService servicio;
+    private TransactionTemplate tx;
     private Lote existente;
 
     @BeforeEach
     void preparar() {
         lotes = mock(LoteRepository.class);
         externos = mock(DatosExternosService.class);
+        tx = mock(TransactionTemplate.class);
+        when(tx.execute(any())).thenAnswer(i -> i.<TransactionCallback<?>>getArgument(0).doInTransaction(null));
         EstablecimientoService establecimientos = mock(EstablecimientoService.class);
 
         Establecimiento e = new Establecimiento();
@@ -60,7 +69,7 @@ class LoteServiceTest {
                 new ApisExternasProperties.SoilGrids("http://x", "0-5cm", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
                 new ApisExternasProperties.Georef("http://y", Duration.ofSeconds(1), Duration.ofSeconds(1), 0),
                 new ApisExternasProperties.Textura(new BigDecimal("50"), new BigDecimal("35")));
-        servicio = new LoteService(lotes, establecimientos, new AccesoService(), externos, new ClasificadorTextura(props));
+        servicio = new LoteService(lotes, establecimientos, new AccesoService(), externos, new ClasificadorTextura(props), tx);
 
         existente = new Lote();
         existente.setId(7L);
@@ -126,6 +135,18 @@ class LoteServiceTest {
     }
 
     @Test
+    void crearConsultaLasApisAntesDeAbrirLaTransaccion() {
+        when(externos.consultar(LAT, LON)).thenReturn(new DatosExternosLote(suelo(), null));
+
+        servicio.crear(1L, pedido(), productor);
+
+        InOrder orden = inOrder(externos, tx, lotes);
+        orden.verify(externos).consultar(LAT, LON);
+        orden.verify(tx).execute(any());
+        orden.verify(lotes).save(any(Lote.class));
+    }
+
+    @Test
     void soloElProductorDuenioCreaLotes() {
         assertThatThrownBy(() -> servicio.crear(1L, pedido(), otroProductor)).isInstanceOf(AccessDeniedException.class);
     }
@@ -136,6 +157,7 @@ class LoteServiceTest {
 
         assertThatThrownBy(() -> servicio.refrescar(7L)).isInstanceOf(ServicioNoDisponibleException.class);
         assertThat(existente.getEstadoSuelo()).isEqualTo(EstadoSuelo.SIN_DATOS);
+        verify(tx, never()).execute(any());
     }
 
     @Test
