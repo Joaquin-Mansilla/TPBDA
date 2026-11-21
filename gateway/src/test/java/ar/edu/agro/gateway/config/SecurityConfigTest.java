@@ -43,6 +43,12 @@ class SecurityConfigTest {
             "AGRONOMO,  POST,   /api/v1/establecimientos,                 false",
             "PRODUCTOR, DELETE, /api/v1/campanias/3,                      true",
             "OPERARIO,  PUT,    /api/v1/campanias/3,                      false",
+            "PRODUCTOR, POST,   /api/v1/campanias/3/siembra,              true",
+            "PRODUCTOR, POST,   /api/v1/campanias/3/cosecha,              true",
+            "PRODUCTOR, POST,   /api/v1/campanias/3/perdida,              true",
+            "OPERARIO,  POST,   /api/v1/campanias/3/siembra,              false",
+            "AGRONOMO,  POST,   /api/v1/campanias/3/cosecha,              false",
+            "PRODUCTOR, PATCH,  /api/v1/campanias/3/estado,               false",
 
             "AGRONOMO,  POST,   /api/v1/cultivos,                         true",
             "PRODUCTOR, POST,   /api/v1/cultivos,                         false",

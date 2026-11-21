@@ -20,14 +20,22 @@ public final class CamposDtos {
     }
 
     // ---- establecimientos y lotes
-    public record EstablecimientoRequest(@NotBlank @Size(max = 100) String nombre, Set<String> operarios) {
+    /** El establecimiento se define con un rectángulo de coordenadas; con él se calculan sus hectáreas (T16). */
+    public record EstablecimientoRequest(@NotBlank @Size(max = 100) String nombre, Set<String> operarios,
+                                         @NotNull @DecimalMin("-90") @DecimalMax("90") BigDecimal latitudMin,
+                                         @NotNull @DecimalMin("-90") @DecimalMax("90") BigDecimal latitudMax,
+                                         @NotNull @DecimalMin("-180") @DecimalMax("180") BigDecimal longitudMin,
+                                         @NotNull @DecimalMin("-180") @DecimalMax("180") BigDecimal longitudMax) {
     }
 
     public record LoteResumen(Long id, String nombre, BigDecimal superficieHa, EstadoSuelo estadoSuelo) {
     }
 
+    /** superficieLibreHa = superficie del establecimiento menos la suma de sus lotes. */
     public record EstablecimientoResponse(Long id, String nombre, String productorSub, Set<String> operarios,
-                                          List<LoteResumen> lotes) {
+                                          List<LoteResumen> lotes, BigDecimal latitudMin, BigDecimal latitudMax,
+                                          BigDecimal longitudMin, BigDecimal longitudMax, BigDecimal superficieHa,
+                                          BigDecimal superficieLibreHa) {
     }
 
     public record LoteRequest(@NotBlank @Size(max = 100) String nombre,
@@ -56,12 +64,21 @@ public final class CamposDtos {
                                   @NotNull LocalDate fechaSiembra) {
     }
 
+    /** fechaSiembra es la planificada; fechaSiembraReal, fechaCosecha y fechaPerdida se completan con cada acción. */
     public record CampaniaResponse(Long id, Long loteId, Long cultivoId, BigDecimal superficieSembradaHa,
                                    LocalDate fechaSiembra, LocalDate cosechaEstimada, EstadoCampania estado,
-                                   String motivoPerdida) {
+                                   String motivoPerdida, LocalDate fechaSiembraReal, LocalDate fechaCosecha,
+                                   LocalDate fechaPerdida) {
     }
 
-    public record CambioEstadoRequest(@NotNull EstadoCampania estado, @Size(max = 255) String motivo) {
+    // ---- acciones sobre la campaña (el estado cambia como consecuencia, C5)
+    public record SiembraRequest(@NotNull LocalDate fecha) {
+    }
+
+    public record CosechaRequest(@NotNull LocalDate fecha) {
+    }
+
+    public record PerdidaRequest(@NotNull LocalDate fecha, @NotBlank @Size(max = 255) String motivo) {
     }
 
     public record MonitoreoRequest(@NotNull Long plagaId,

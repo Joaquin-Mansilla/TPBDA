@@ -2,7 +2,7 @@
 
 | Archivo | Qué es |
 |---|---|
-| `TPBDA.postman_collection.json` | La colección (Postman v2.1): 41 requests con asserts |
+| `TPBDA.postman_collection.json` | La colección (Postman v2.1): 47 requests y 98 asserts |
 | `TPBDA-local.postman_environment.json` | Entorno "TPBDA local": `baseUrl`, `keycloakUrl` y `gatewayUrl` |
 
 Todas las pruebas pasan por el **gateway** (`http://localhost:8080`), igual que un cliente real.
@@ -43,17 +43,25 @@ correr la carpeta 00 antes de seguir.
 | 00 · Tokens | Pide un token para productor1, productor2, operario1 y agronomo1 | T05 |
 | 01 · Seguridad | Health sin token, 401 sin token, 403 por rol (operario planifica, productor crea cultivo) y por pertenencia (productor2 en el establecimiento de productor1) | T08 |
 | 02 · Catálogo | Listados de cultivos, plagas y agroquímicos; el agrónomo crea un cultivo | T07 |
-| 03 · Recorrido completo | Establecimiento → lote (SoilGrids/Georef o SIN_DATOS) → suelo a mano → campaña → C1, C2, C4 → SEMBRADA → C5 → monitoreo → aplicación → consulta de la evaluación | T07, T09, T10, T11 |
+| 03 · Recorrido completo | Establecimiento con rectángulo → lote fuera de los límites y lote que no entra (C2) → lote (SoilGrids/Georef o SIN_DATOS) → suelo a mano → planificar soja hoy → C1, C2, C4 → siembra real fuera de tolerancia (C4) → registrar la siembra → sembrar otra vez (C5) → monitoreo → aplicación antes de la siembra (C8) → aplicación → consulta de la evaluación → cosecha → cosechar otra vez (C5) | T07, T09, T10, T11, T16 |
 | 04 · Reglas con datos de prueba | VIABLE (201), REPROGRAMAR por T3, NO_RECOMENDADO por T5, T1 y T2, pendiente por L1 (202), rotación C3, superficie tratada C2 | T07, T10, T11 |
 | 05 · Agrónomo resuelve pendientes | Bandeja, autorizar sin justificación (400), operario no autoriza (403), autorizar (200), A1 (422) | T08, T11 |
 | 06 · Validaciones y errores | Cuerpo inválido (400 con `detalles`), campaña inexistente (404), agroquímico inexistente (404) | T07, T12 |
+
+**Fechas relativas a hoy (T16).** Un script de la colección define, antes de cada request, `{{hoy}}`,
+`{{hoyMenos1}}`, `{{hoyMenos60}}`, `{{hoyMas3}}`, `{{hoyMas10}}`, `{{hoyMas150}}`, `{{hoyMas200}}` y `{{hoyMas365}}`
+(formato `AAAA-MM-DD`, con la fecha local de la máquina). La carpeta 03 planifica y siembra **soja hoy**, y la ventana
+de siembra de la soja es **de octubre a diciembre**: si se corre de enero a septiembre, planificar y sembrar dan 422 C4.
+En ese caso hay que cambiar a un cultivo cuya ventana incluya el mes actual (maíz, `cultivoId` 2, septiembre a
+diciembre; trigo, `cultivoId` 3, mayo a julio) y ajustar las fechas de C1 y C4 y la cosecha esperada
+(`hoyMas150` es el ciclo de la soja).
 
 La consulta de una evaluación (`GET /evaluaciones/{id}`, del catálogo) está al final de la carpeta 03:
 necesita el id de una evaluación, que recién existe después de registrar una aplicación.
 
 ### Si se corre dos veces sin borrar la base
 
-Con la base recién creada pasan los 81 asserts. En una segunda corrida sin borrar la base fallan 11, todos
+Con la base recién creada pasan los 98 asserts. En una segunda corrida sin borrar la base fallan 11, todos
 en las carpetas 04 y 05 (comprobado con Newman):
 
 | Request | Qué pasa en la segunda corrida |

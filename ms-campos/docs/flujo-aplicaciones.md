@@ -4,7 +4,7 @@ Código: `AplicacionService` (ms-campos) y `EvaluacionService` (ms-tratamientos)
 
 ## Registrar: `POST /api/v1/campanias/{id}/aplicaciones` (PRODUCTOR dueño u OPERARIO asignado)
 
-ms-campos valida C6 (pertenencia, 403), C5 (campaña SEMBRADA) y C2 (superficie tratada ≤ sembrada); si alguna falla, 422 con los motivos y **no llama a Tratamientos**. Después arma el pedido (cultivo, cosecha estimada, suelo y ubicación del lote, y las aplicaciones previas del **mismo producto** en el lote, solo las REGISTRADAS o AUTORIZADAS) y llama a Tratamientos con el token del usuario.
+ms-campos valida C6 (pertenencia, 403), C5 (campaña SEMBRADA), C2 (superficie tratada ≤ sembrada) y C8 (fecha entre la siembra real y la cosecha estimada, T16); si alguna falla, 422 con los motivos y **no llama a Tratamientos**. Después arma el pedido (cultivo, cosecha estimada, suelo y ubicación del lote, y las aplicaciones previas del **mismo producto** en el lote, solo las REGISTRADAS o AUTORIZADAS) y llama a Tratamientos con el token del usuario.
 
 | Respuesta de Tratamientos | Estado de la aplicación | HTTP |
 |---|---|---|
