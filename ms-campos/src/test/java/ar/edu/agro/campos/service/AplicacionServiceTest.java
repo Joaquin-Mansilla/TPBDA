@@ -102,7 +102,7 @@ class AplicacionServiceTest {
         campania.setSuperficieSembradaHa(new BigDecimal("80"));
         campania.setFechaSiembra(LocalDate.of(2026, 11, 1));
         campania.setCosechaEstimada(LocalDate.of(2027, 3, 31));
-        campania.setEstado(EstadoCampania.SEMBRADA);
+        campania.sembrar(LocalDate.of(2026, 11, 1), LocalDate.of(2027, 3, 31));
 
         when(campanias.buscar(5L)).thenReturn(campania);
         when(repo.findByLoteYEstados(eq(1L), anyCollection())).thenReturn(List.of());
@@ -252,7 +252,15 @@ class AplicacionServiceTest {
 
     @Test
     void unaCampaniaQueNoEstaSembradaSeRechazaSinConsultarATratamientos() {
-        campania.setEstado(EstadoCampania.PLANIFICADA);
+        Campania planificada = new Campania();
+        planificada.setId(5L);
+        planificada.setLote(lote);
+        planificada.setCultivoId(1L);
+        planificada.setSuperficieSembradaHa(new BigDecimal("80"));
+        planificada.setFechaSiembra(LocalDate.of(2026, 11, 1));
+        planificada.setCosechaEstimada(LocalDate.of(2027, 3, 31));
+        when(campanias.buscar(5L)).thenReturn(planificada);
+        assertThat(planificada.getEstado()).isEqualTo(EstadoCampania.PLANIFICADA);
 
         ReglaNegocioException e = reglaIncumplida(() -> servicio.registrar(5L, pedido(), operario));
 

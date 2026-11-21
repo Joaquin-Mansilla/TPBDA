@@ -96,7 +96,6 @@ public class CampaniaService {
             c.setSuperficieSembradaHa(r.superficieSembradaHa());
             c.setFechaSiembra(r.fechaSiembra());
             c.setCosechaEstimada(cosecha);
-            c.setEstado(EstadoCampania.PLANIFICADA);
             campanias.save(c);
             return aRespuesta(c);
         });
@@ -123,21 +122,45 @@ public class CampaniaService {
         return aRespuesta(c);
     }
 
-    /** F05 (regla C5): PLANIFICADA a SEMBRADA o PERDIDA; SEMBRADA a COSECHADA o PERDIDA; perder exige motivo. */
+    /**
+     * F05: registrar la siembra real (PLANIFICADA -> SEMBRADA, C5). Con la fecha real se recalcula la cosecha estimada,
+     * para lo que hace falta el ciclo del cultivo: se pide a ms-tratamientos fuera de la transacción.
+     */
+    public CampaniaResponse registrarSiembra(Long id, SiembraRequest r, Usuario u) {
+        Campania leida = buscar(id);
+        acceso.exigirDueno(leida.getLote().getEstablecimiento(), u);
+        // si la campaña no se puede sembrar no tiene sentido consultar a ms-tratamientos (ni dar 503 en lugar de 422)
+        if (!leida.getEstado().puedePasarA(EstadoCampania.SEMBRADA)) {
+            throw ErroresDeRegla.de("C5", "No se puede pasar de " + leida.getEstado() + " a " + EstadoCampania.SEMBRADA);
+        }
+        CultivoResumenResponse cultivo = tratamientos.obtenerCultivo(leida.getCultivoId());
+        LocalDate cosecha = r.fecha().plusDays(cultivo.diasCiclo());
+
+        return tx.execute(estado -> {
+            Campania c = buscar(id);
+            c.sembrar(r.fecha(), cosecha);
+            campanias.save(c);
+            return aRespuesta(c);
+        });
+    }
+
+    /** F05: registrar la cosecha (SEMBRADA -> COSECHADA, C5). */
     @Transactional
-    public CampaniaResponse cambiarEstado(Long id, CambioEstadoRequest r, Usuario u) {
+    public CampaniaResponse registrarCosecha(Long id, CosechaRequest r, Usuario u) {
         Campania c = buscar(id);
         acceso.exigirDueno(c.getLote().getEstablecimiento(), u);
-        if (!ReglasCampania.c5TransicionValida(c.getEstado(), r.estado())) {
-            throw ErroresDeRegla.de("C5", "No se puede pasar de " + c.getEstado() + " a " + r.estado());
-        }
-        if (r.estado() == EstadoCampania.PERDIDA) {
-            if (r.motivo() == null || r.motivo().isBlank()) {
-                throw ErroresDeRegla.de("C5", "Para marcar la campaña como perdida hay que indicar el motivo");
-            }
-            c.setMotivoPerdida(r.motivo());
-        }
-        c.setEstado(r.estado());
+        c.cosechar(r.fecha());
+        campanias.save(c);
+        return aRespuesta(c);
+    }
+
+    /** F05: marcar la campaña como perdida con motivo (PLANIFICADA o SEMBRADA -> PERDIDA, C5). */
+    @Transactional
+    public CampaniaResponse registrarPerdida(Long id, PerdidaRequest r, Usuario u) {
+        Campania c = buscar(id);
+        acceso.exigirDueno(c.getLote().getEstablecimiento(), u);
+        c.perder(r.fecha(), r.motivo());
+        campanias.save(c);
         return aRespuesta(c);
     }
 
@@ -164,6 +187,7 @@ public class CampaniaService {
 
     private CampaniaResponse aRespuesta(Campania c) {
         return new CampaniaResponse(c.getId(), c.getLote().getId(), c.getCultivoId(), c.getSuperficieSembradaHa(),
-                c.getFechaSiembra(), c.getCosechaEstimada(), c.getEstado(), c.getMotivoPerdida());
+                c.getFechaSiembra(), c.getCosechaEstimada(), c.getEstado(), c.getMotivoPerdida(),
+                c.getFechaSiembraReal(), c.getFechaCosecha(), c.getFechaPerdida());
     }
 }

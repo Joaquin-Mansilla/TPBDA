@@ -1,6 +1,5 @@
 package ar.edu.agro.campos.service;
 
-import ar.edu.agro.campos.model.EstadoCampania;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -78,21 +77,5 @@ class ReglasCampaniaTest {
         assertThat(ReglasCampania.c4DentroDeVentana(d("2027-01-15"), 11, 2)).isTrue();
         assertThat(ReglasCampania.c4DentroDeVentana(d("2026-11-15"), 11, 2)).isTrue();
         assertThat(ReglasCampania.c4DentroDeVentana(d("2026-06-15"), 11, 2)).isFalse();
-    }
-
-    // C5
-    @Test
-    void c5_transicionesPermitidas() {
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.PLANIFICADA, EstadoCampania.SEMBRADA)).isTrue();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.SEMBRADA, EstadoCampania.COSECHADA)).isTrue();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.SEMBRADA, EstadoCampania.PERDIDA)).isTrue();
-    }
-
-    @Test
-    void c5_transicionesRechazadas() {
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.SEMBRADA, EstadoCampania.SEMBRADA)).isFalse();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.PLANIFICADA, EstadoCampania.COSECHADA)).isFalse();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.COSECHADA, EstadoCampania.SEMBRADA)).isFalse();
-        assertThat(ReglasCampania.c5TransicionValida(EstadoCampania.PERDIDA, EstadoCampania.SEMBRADA)).isFalse();
     }
 }

@@ -56,12 +56,21 @@ public final class CamposDtos {
                                   @NotNull LocalDate fechaSiembra) {
     }
 
+    /** fechaSiembra es la planificada; fechaSiembraReal, fechaCosecha y fechaPerdida se completan con cada acción. */
     public record CampaniaResponse(Long id, Long loteId, Long cultivoId, BigDecimal superficieSembradaHa,
                                    LocalDate fechaSiembra, LocalDate cosechaEstimada, EstadoCampania estado,
-                                   String motivoPerdida) {
+                                   String motivoPerdida, LocalDate fechaSiembraReal, LocalDate fechaCosecha,
+                                   LocalDate fechaPerdida) {
     }
 
-    public record CambioEstadoRequest(@NotNull EstadoCampania estado, @Size(max = 255) String motivo) {
+    // ---- acciones sobre la campaña (el estado cambia como consecuencia, C5)
+    public record SiembraRequest(@NotNull LocalDate fecha) {
+    }
+
+    public record CosechaRequest(@NotNull LocalDate fecha) {
+    }
+
+    public record PerdidaRequest(@NotNull LocalDate fecha, @NotBlank @Size(max = 255) String motivo) {
     }
 
     public record MonitoreoRequest(@NotNull Long plagaId,

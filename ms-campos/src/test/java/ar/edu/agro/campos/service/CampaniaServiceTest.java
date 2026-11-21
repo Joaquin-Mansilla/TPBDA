@@ -13,6 +13,9 @@ import ar.edu.agro.campos.client.ApiExternaException;
 import ar.edu.agro.campos.client.TratamientosClient;
 import ar.edu.agro.campos.dto.CamposDtos.CampaniaRequest;
 import ar.edu.agro.campos.dto.CamposDtos.CampaniaResponse;
+import ar.edu.agro.campos.dto.CamposDtos.CosechaRequest;
+import ar.edu.agro.campos.dto.CamposDtos.PerdidaRequest;
+import ar.edu.agro.campos.dto.CamposDtos.SiembraRequest;
 import ar.edu.agro.campos.model.Campania;
 import ar.edu.agro.campos.model.EstadoCampania;
 import ar.edu.agro.campos.model.Establecimiento;
@@ -86,7 +89,12 @@ class CampaniaServiceTest {
         c.setSuperficieSembradaHa(new BigDecimal("70"));
         c.setFechaSiembra(LocalDate.parse(siembra));
         c.setCosechaEstimada(LocalDate.parse(cosecha));
-        c.setEstado(estado);
+        if (estado != EstadoCampania.PLANIFICADA) {
+            c.sembrar(c.getFechaSiembra(), c.getCosechaEstimada());
+        }
+        if (estado == EstadoCampania.COSECHADA) {
+            c.cosechar(c.getCosechaEstimada());
+        }
         return c;
     }
 
@@ -127,6 +135,95 @@ class CampaniaServiceTest {
                 .isInstanceOf(ReglaNegocioException.class)
                 .satisfies(ex -> assertThat(((ReglaNegocioException) ex).getMotivos()).anyMatch(m -> m.startsWith("C3")));
         verify(campanias, never()).save(any());
+    }
+
+    private Campania guardada(Campania c) {
+        when(campanias.findById(c.getId())).thenReturn(Optional.of(c));
+        return c;
+    }
+
+    private static void esC5(Throwable ex) {
+        assertThat(ex).isInstanceOf(ReglaNegocioException.class);
+        assertThat(((ReglaNegocioException) ex).getMotivos()).anyMatch(m -> m.startsWith("C5"));
+    }
+
+    @Test
+    void registrarLaSiembraPasaASembradaYRecalculaLaCosecha() {
+        guardada(existente(30L, "2026-11-15", "2027-04-14", EstadoCampania.PLANIFICADA));
+
+        CampaniaResponse r = servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 11, 20)), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.SEMBRADA);
+        assertThat(r.fechaSiembra()).isEqualTo(LocalDate.of(2026, 11, 15));
+        assertThat(r.fechaSiembraReal()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(r.cosechaEstimada()).isEqualTo(LocalDate.of(2027, 4, 19));
+    }
+
+    @Test
+    void laSiembraPideElCultivoAntesDeAbrirLaTransaccion() {
+        guardada(existente(30L, "2026-11-15", "2027-04-14", EstadoCampania.PLANIFICADA));
+
+        servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 11, 20)), productor);
+
+        InOrder orden = inOrder(tratamientos, tx, campanias);
+        orden.verify(tratamientos).obtenerCultivo(1L);
+        orden.verify(tx).execute(any());
+        orden.verify(campanias).save(any(Campania.class));
+    }
+
+    @Test
+    void sembrarOtraVezEsC5SinConsultarAMsTratamientos() {
+        guardada(existente(30L, "2026-11-15", "2027-04-14", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarSiembra(30L, new SiembraRequest(LocalDate.of(2026, 11, 20)), productor))
+                .satisfies(CampaniaServiceTest::esC5);
+        verify(tratamientos, never()).obtenerCultivo(any());
+        verify(tx, never()).execute(any());
+    }
+
+    @Test
+    void cosecharUnaCampaniaSembrada() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 20)), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.COSECHADA);
+        assertThat(r.fechaCosecha()).isEqualTo(LocalDate.of(2027, 3, 20));
+    }
+
+    @Test
+    void cosecharSinHaberSembradoEsC5() {
+        guardada(existente(30L, "2026-11-15", "2027-04-14", EstadoCampania.PLANIFICADA));
+
+        assertThatThrownBy(() -> servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 20)), productor))
+                .satisfies(CampaniaServiceTest::esC5);
+    }
+
+    @Test
+    void perderGuardaFechaYMotivo() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        CampaniaResponse r = servicio.registrarPerdida(30L, new PerdidaRequest(LocalDate.of(2026, 12, 1), "  Granizo  "), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.PERDIDA);
+        assertThat(r.fechaPerdida()).isEqualTo(LocalDate.of(2026, 12, 1));
+        assertThat(r.motivoPerdida()).isEqualTo("Granizo");
+    }
+
+    @Test
+    void perderSinMotivoEsC5() {
+        Campania c = existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA);
+
+        assertThatThrownBy(() -> c.perder(LocalDate.of(2026, 12, 1), " ")).satisfies(CampaniaServiceTest::esC5);
+        assertThat(c.getEstado()).isEqualTo(EstadoCampania.SEMBRADA);
+    }
+
+    @Test
+    void unaCampaniaCosechadaNoSePuedePerder() {
+        guardada(existente(30L, "2024-11-10", "2025-04-09", EstadoCampania.COSECHADA));
+
+        assertThatThrownBy(() -> servicio.registrarPerdida(30L, new PerdidaRequest(LocalDate.of(2025, 5, 1), "Granizo"), productor))
+                .satisfies(CampaniaServiceTest::esC5);
     }
 
     @Test

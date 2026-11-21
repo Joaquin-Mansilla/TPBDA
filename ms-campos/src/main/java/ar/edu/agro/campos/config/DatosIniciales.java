@@ -122,7 +122,14 @@ public class DatosIniciales implements ApplicationRunner {
         c.setSuperficieSembradaHa(new BigDecimal(sup));
         c.setFechaSiembra(LocalDate.parse(siembra));
         c.setCosechaEstimada(LocalDate.parse(cosecha));
-        c.setEstado(estado);
+        // el estado se alcanza con las mismas acciones que usa la API: se siembra en la fecha planificada
+        // y, si ya terminó, se cosecha en la fecha estimada
+        if (estado == EstadoCampania.SEMBRADA || estado == EstadoCampania.COSECHADA) {
+            c.sembrar(c.getFechaSiembra(), c.getCosechaEstimada());
+        }
+        if (estado == EstadoCampania.COSECHADA) {
+            c.cosechar(c.getCosechaEstimada());
+        }
         return campanias.save(c);
     }
 }

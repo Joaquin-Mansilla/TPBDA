@@ -1,13 +1,12 @@
 package ar.edu.agro.campos.service;
 
-import ar.edu.agro.campos.model.EstadoCampania;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Reglas C1 a C5 sin base de datos ni Spring, para probarlas con casos normales, límites y rechazos.
+ * Reglas C1 a C4 sin base de datos ni Spring, para probarlas con casos normales, límites y rechazos.
+ * (C5, las transiciones de estado, las conoce EstadoCampania.)
  * (C6, la pertenencia, está en AccesoService; L1 y A1 en los servicios de lote y aplicación.)
  */
 public final class ReglasCampania {
@@ -41,14 +40,5 @@ public final class ReglasCampania {
     public static boolean c4DentroDeVentana(LocalDate fechaSiembra, int mesDesde, int mesHasta) {
         int mes = fechaSiembra.getMonthValue();
         return mesDesde <= mesHasta ? (mes >= mesDesde && mes <= mesHasta) : (mes >= mesDesde || mes <= mesHasta);
-    }
-
-    /** C5: transiciones de estado permitidas de una campaña. */
-    public static boolean c5TransicionValida(EstadoCampania actual, EstadoCampania nuevo) {
-        return switch (actual) {
-            case PLANIFICADA -> nuevo == EstadoCampania.SEMBRADA || nuevo == EstadoCampania.PERDIDA;
-            case SEMBRADA -> nuevo == EstadoCampania.COSECHADA || nuevo == EstadoCampania.PERDIDA;
-            case COSECHADA, PERDIDA -> false;
-        };
     }
 }
