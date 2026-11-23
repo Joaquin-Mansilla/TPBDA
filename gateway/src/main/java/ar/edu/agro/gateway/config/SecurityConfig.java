@@ -60,6 +60,12 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.PATCH, "/api/v1/campanias/*/monitoreos/**").hasRole(PRODUCTOR)
                 .pathMatchers(HttpMethod.DELETE, "/api/v1/campanias/*/monitoreos/**").hasRole(PRODUCTOR)
 
+                // Riegos (/campanias/{id}/riegos, R1): los registran PRODUCTOR y OPERARIO, como los monitoreos.
+                // Consultar si toca regar (GET /campanias/{id}/riego) entra en la lectura general.
+                .pathMatchers(HttpMethod.POST, "/api/v1/campanias/*/riegos").hasAnyRole(PRODUCTOR, OPERARIO)
+                // Lluvias del lote (/lotes/{id}/lluvias, R1): se cargan a mano, igual que los riegos.
+                .pathMatchers(HttpMethod.POST, "/api/v1/lotes/*/lluvias").hasAnyRole(PRODUCTOR, OPERARIO)
+
                 // Aplicaciones (T07): se registran en una campaña (POST /campanias/{id}/aplicaciones), las registran
                 // PRODUCTOR y OPERARIO. Autorizar y reevaluar una pendiente es del AGRONOMO.
                 .pathMatchers(HttpMethod.POST, "/api/v1/campanias/*/aplicaciones").hasAnyRole(PRODUCTOR, OPERARIO)

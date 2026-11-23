@@ -42,8 +42,12 @@ public class Aplicacion {
     private String justificacion;
     @Column(name = "autorizada_por_sub", length = 36)
     private String autorizadaPorSub;
+    @Column(name = "autorizada_por_nombre", length = 100)
+    private String autorizadaPorNombre;
     @Column(name = "registrada_por_sub", nullable = false, length = 36)
     private String registradaPorSub;
+    @Column(name = "registrada_por_nombre", length = 100)
+    private String registradaPorNombre;
     @Version @Column(nullable = false)
     private Long version;
 }

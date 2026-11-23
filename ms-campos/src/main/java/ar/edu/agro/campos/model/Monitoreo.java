@@ -22,4 +22,9 @@ public class Monitoreo {
     private BigDecimal incidenciaPct;
     @Column(nullable = false)
     private LocalDate fecha;
+    /** quién lo registró (null en los monitoreos anteriores a este cambio) */
+    @Column(name = "registrado_por_sub", length = 36)
+    private String registradoPorSub;
+    @Column(name = "registrado_por_nombre", length = 100)
+    private String registradoPorNombre;
 }

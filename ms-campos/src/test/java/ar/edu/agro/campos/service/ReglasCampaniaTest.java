@@ -33,6 +33,52 @@ class ReglasCampaniaTest {
         assertThat(ReglasCampania.c1Superpone(d("2027-03-31"), d("2027-08-31"), existentes)).isTrue();
     }
 
+    // C1 con varios cultivos en el lote (lote de 100 ha con 60 ha de soja, cultivo 1)
+    private static final BigDecimal LOTE = new BigDecimal("100");
+    private static final List<ReglasCampania.Ocupacion> SOJA_60 =
+            List.of(new ReglasCampania.Ocupacion(d("2026-11-01"), d("2027-03-31"), 1L, new BigDecimal("60")));
+
+    @Test
+    void c1_otroCultivoQueEntraEnLoQueQuedaDelLoteCumple() {
+        assertThat(ReglasCampania.c1Incumplimientos(d("2026-11-15"), d("2027-04-24"), 2L, new BigDecimal("40"), LOTE, SOJA_60))
+                .isEmpty();
+    }
+
+    @Test
+    void c1_otroCultivoQueNoEntraSeRechazaYDiceCuantoQuedaLibre() {
+        assertThat(ReglasCampania.c1Incumplimientos(d("2026-11-15"), d("2027-04-24"), 2L, new BigDecimal("41"), LOTE, SOJA_60))
+                .singleElement().asString().contains("101 ha sembradas").contains("libres: 40 ha");
+    }
+
+    @Test
+    void c1_elMismoCultivoAlMismoTiempoSeRechazaAunqueEntre() {
+        assertThat(ReglasCampania.c1Incumplimientos(d("2026-12-01"), d("2027-04-30"), 1L, new BigDecimal("10"), LOTE, SOJA_60))
+                .singleElement().asString().contains("mismo cultivo");
+    }
+
+    @Test
+    void c1_sinSuperposicionPuedeOcuparTodoElLote() {
+        assertThat(ReglasCampania.c1Incumplimientos(d("2027-04-01"), d("2027-09-01"), 1L, LOTE, LOTE, SOJA_60)).isEmpty();
+    }
+
+    @Test
+    void c1_seSumanTodasLasSuperpuestas() {
+        var dos = List.of(SOJA_60.get(0),
+                new ReglasCampania.Ocupacion(d("2026-11-15"), d("2027-04-24"), 2L, new BigDecimal("30")));
+        assertThat(ReglasCampania.c1Incumplimientos(d("2026-12-01"), d("2027-05-30"), 3L, new BigDecimal("20"), LOTE, dos))
+                .singleElement().asString().contains("110 ha sembradas");
+    }
+
+    // C9 (estimada 31/03/2027, 10 días de anticipo)
+    @Test
+    void c9_desde10DiasAntesDeLaEstimadaEnAdelante() {
+        LocalDate estimada = d("2027-03-31");
+        assertThat(ReglasCampania.c9CosechaATiempo(d("2027-03-20"), estimada, 10)).isFalse();
+        assertThat(ReglasCampania.c9CosechaATiempo(d("2027-03-21"), estimada, 10)).isTrue();
+        assertThat(ReglasCampania.c9CosechaATiempo(d("2027-03-31"), estimada, 10)).isTrue();
+        assertThat(ReglasCampania.c9CosechaATiempo(d("2027-05-01"), estimada, 10)).isTrue();
+    }
+
     // C2
     @Test
     void c2_superficieIgualOMenorCumple() {

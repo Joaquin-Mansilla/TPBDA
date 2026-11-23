@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "TPBDA · Pruebas integrales",
-    "description": "Pruebas integrales del TPI Backend agro por el gateway (T07 a T12 y correcciones de la T16). Ver postman/README.md.",
+    "description": "Pruebas integrales del TPI Backend agro por el gateway (T07 a T12, correcciones de la T16 y el demo de punta a punta con riego, dos cultivos por lote, alertas y rendimiento). Ver postman/README.md.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -21,11 +21,43 @@
           "pm.collectionVariables.set(\"hoy\", dia(0));",
           "pm.collectionVariables.set(\"hoyMenos1\", dia(-1));",
           "pm.collectionVariables.set(\"hoyMenos60\", dia(-60));",
+          "pm.collectionVariables.set(\"hoyMenos5\", dia(-5));",
+          "pm.collectionVariables.set(\"hoyMenos170\", dia(-170));",
+          "pm.collectionVariables.set(\"hoyMenos180\", dia(-180));",
+          "pm.collectionVariables.set(\"hoyMenos185\", dia(-185));",
+          "pm.collectionVariables.set(\"hoyMenos10\", dia(-10));",
           "pm.collectionVariables.set(\"hoyMas3\", dia(3));",
+          "pm.collectionVariables.set(\"hoyMas7\", dia(7));",
           "pm.collectionVariables.set(\"hoyMas10\", dia(10));",
           "pm.collectionVariables.set(\"hoyMas150\", dia(150));",
           "pm.collectionVariables.set(\"hoyMas200\", dia(200));",
-          "pm.collectionVariables.set(\"hoyMas365\", dia(365));"
+          "pm.collectionVariables.set(\"hoyMas365\", dia(365));",
+          "",
+          "// Tokens: si falta alguno o está por vencer, se pide de nuevo a Keycloak antes de mandar el request.",
+          "// Así el demo no se corta con 401 si pasó más de una hora desde la carpeta 00.",
+          "const usuarios = { tokenProductor1: \"productor1\", tokenProductor2: \"productor2\", tokenOperario1: \"operario1\", tokenAgronomo1: \"agronomo1\" };",
+          "const esPedidoDeToken = pm.request.url.toString().includes(\"/protocol/openid-connect/token\");",
+          "if (!esPedidoDeToken) {",
+          "    Object.entries(usuarios).forEach(([variable, usuario]) => {",
+          "        const vence = Number(pm.collectionVariables.get(variable + \"Vence\") || 0);",
+          "        if (pm.collectionVariables.get(variable) && vence > Date.now() + 30000) {",
+          "            return;",
+          "        }",
+          "        pm.sendRequest({",
+          "            url: pm.variables.get(\"keycloakUrl\") + \"/realms/agro/protocol/openid-connect/token\",",
+          "            method: \"POST\",",
+          "            header: { \"Content-Type\": \"application/x-www-form-urlencoded\" },",
+          "            body: { mode: \"urlencoded\", urlencoded: [",
+          "                { key: \"grant_type\", value: \"password\" }, { key: \"client_id\", value: \"agro-cliente\" },",
+          "                { key: \"username\", value: usuario }, { key: \"password\", value: usuario }] }",
+          "        }, (error, respuesta) => {",
+          "            if (!error && respuesta.code === 200) {",
+          "                pm.collectionVariables.set(variable, respuesta.json().access_token);",
+          "                pm.collectionVariables.set(variable + \"Vence\", Date.now() + respuesta.json().expires_in * 1000);",
+          "            }",
+          "        });",
+          "    });",
+          "}"
         ]
       }
     }
@@ -78,7 +110,8 @@
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
-                  "pm.collectionVariables.set(\"tokenProductor1\", pm.response.json().access_token);"
+                  "pm.collectionVariables.set(\"tokenProductor1\", pm.response.json().access_token);",
+                  "pm.collectionVariables.set(\"tokenProductor1Vence\", Date.now() + pm.response.json().expires_in * 1000);"
                 ]
               }
             }
@@ -127,7 +160,8 @@
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
-                  "pm.collectionVariables.set(\"tokenProductor2\", pm.response.json().access_token);"
+                  "pm.collectionVariables.set(\"tokenProductor2\", pm.response.json().access_token);",
+                  "pm.collectionVariables.set(\"tokenProductor2Vence\", Date.now() + pm.response.json().expires_in * 1000);"
                 ]
               }
             }
@@ -176,7 +210,8 @@
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
-                  "pm.collectionVariables.set(\"tokenOperario1\", pm.response.json().access_token);"
+                  "pm.collectionVariables.set(\"tokenOperario1\", pm.response.json().access_token);",
+                  "pm.collectionVariables.set(\"tokenOperario1Vence\", Date.now() + pm.response.json().expires_in * 1000);"
                 ]
               }
             }
@@ -225,7 +260,8 @@
                 "exec": [
                   "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
                   "pm.test(\"Trae access_token\", () => pm.expect(pm.response.json().access_token).to.be.a(\"string\"));",
-                  "pm.collectionVariables.set(\"tokenAgronomo1\", pm.response.json().access_token);"
+                  "pm.collectionVariables.set(\"tokenAgronomo1\", pm.response.json().access_token);",
+                  "pm.collectionVariables.set(\"tokenAgronomo1Vence\", Date.now() + pm.response.json().expires_in * 1000);"
                 ]
               }
             }
@@ -234,7 +270,2513 @@
       ]
     },
     {
-      "name": "01 · Seguridad (T08)",
+      "name": "01 · Demo: de punta a punta, con validaciones",
+      "description": "Flujo completo para mostrar, en orden de arriba hacia abajo. Los pasos con 200/201 son el camino feliz: establecimiento → lote → suelo → soja y maíz en el mismo lote → siembra → lluvia cargada a mano → ¿toca regar? → riego → monitoreo con alerta → aplicación → historial (la cosecha todavía no se puede: ver la carpeta 02). Los pasos con 403 o 422, intercalados, muestran lo que el sistema rechaza en cada momento (no guardan nada, así que el flujo sigue igual). Crea sus propios datos: se puede correr las veces que se quiera. Necesita los tokens de la carpeta 00 (si vencieron, se renuevan solos).",
+      "item": [
+        {
+          "name": "01 · Productor crea el establecimiento",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos",
+            "description": "El productor define su campo con un rectángulo de coordenadas (se calculan las hectáreas) y asigna a operario1, que va a registrar riegos, monitoreos y aplicaciones.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Establecimiento Demo {{$timestamp}}\",\n  \"operarios\": [\n    \"22222222-2222-2222-2222-000000000001\"\n  ],\n  \"latitudMin\": -32.71,\n  \"latitudMax\": -32.69,\n  \"longitudMin\": -62.11,\n  \"longitudMax\": -62.09\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Calcula la superficie del rectángulo\", () => pm.expect(Number(pm.response.json().superficieHa)).to.be.above(100));",
+                  "pm.test(\"operario1 queda asignado\", () => pm.expect(pm.response.json().operarios).to.include(\"22222222-2222-2222-2222-000000000001\"));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"demoEstablecimientoId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"demoEstablecimientoId\"); }",
+                  "pm.test(\"Guarda el nombre del productor (del token)\", () => pm.expect(pm.response.json().productorNombre).to.eql(\"productor1 (Pedro Productor)\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 · 422 · Lote fuera del establecimiento (C2)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoEstablecimientoId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C2\", () => pm.expect(reglas).to.include(\"C2\"));",
+                  "pm.test(\"Dice que está fuera de los límites\", () => pm.expect(JSON.stringify(b.detalles)).to.include(\"fuera de los límites\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{demoEstablecimientoId}}/lotes",
+            "description": "VALIDACIÓN: las coordenadas del lote caen fuera del rectángulo del establecimiento. No se crea nada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote afuera\",\n  \"latitud\": -33.5,\n  \"longitud\": -62.1,\n  \"superficieHa\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "03 · 422 · Lote más grande que el establecimiento (C2)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoEstablecimientoId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C2\", () => pm.expect(reglas).to.include(\"C2\"));",
+                  "pm.test(\"Dice que supera la superficie\", () => pm.expect(JSON.stringify(b.detalles)).to.include(\"supera la del establecimiento\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{demoEstablecimientoId}}/lotes",
+            "description": "VALIDACIÓN: el lote está adentro, pero sus 500 ha no entran en las ~415 ha del establecimiento.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote enorme\",\n  \"latitud\": -32.7,\n  \"longitud\": -62.1,\n  \"superficieHa\": 500\n}"
+            }
+          }
+        },
+        {
+          "name": "04 · Productor crea un lote de 100 ha",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{demoEstablecimientoId}}/lotes",
+            "description": "Al crear el lote se consultan SoilGrids (suelo) y Georef (provincia y departamento) con sus coordenadas.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote Demo\",\n  \"latitud\": -32.7,\n  \"longitud\": -62.1,\n  \"superficieHa\": 100\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoEstablecimientoId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "// SoilGrids y Georef pueden no responder: el lote se crea igual (L1) y el paso 07 carga el suelo a mano.",
+                  "pm.test(\"Estado de suelo OK o SIN_DATOS\", () => pm.expect([\"OK\", \"SIN_DATOS\"]).to.include(pm.response.json().estadoSuelo));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"demoLoteId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"demoLoteId\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 · 403 · Otro productor no puede ver el lote (C6)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "let cuerpo = {}; try { cuerpo = pm.response.json() || {}; } catch (e) { /* el gateway responde 403 sin cuerpo */ }",
+                  "console.log(\"Rechazado (403):\", cuerpo.message || \"sin permiso para este rol\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor2}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}",
+            "description": "VALIDACIÓN: productor2 no es dueño de este establecimiento: cada productor ve solo lo suyo."
+          }
+        },
+        {
+          "name": "06 · 403 · El operario no puede cargar el suelo (rol)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "let cuerpo = {}; try { cuerpo = pm.response.json() || {}; } catch (e) { /* el gateway responde 403 sin cuerpo */ }",
+                  "console.log(\"Rechazado (403):\", cuerpo.message || \"sin permiso para este rol\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/suelo",
+            "description": "VALIDACIÓN: cargar el suelo es tarea del agrónomo: el gateway lo rechaza por rol antes de llegar a ms-campos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claseTextura\": \"ARENOSO\"\n}"
+            }
+          }
+        },
+        {
+          "name": "07 · Agrónomo carga el suelo del lote",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/suelo",
+            "description": "Asegura que el lote tenga suelo y ubicación, que ms-tratamientos necesita para evaluar las aplicaciones.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claseTextura\": \"FRANCO\",\n  \"arcillaPct\": 25,\n  \"arenaPct\": 40,\n  \"limoPct\": 35,\n  \"ph\": 6.5,\n  \"carbonoOrganico\": 15,\n  \"provincia\": \"Córdoba\",\n  \"departamento\": \"Marcos Juárez\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Suelo OK\", () => pm.expect(pm.response.json().estadoSuelo).to.eql(\"OK\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 · 422 · Trigo fuera de su ventana de siembra (C4)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C4\", () => pm.expect(reglas).to.include(\"C4\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/campanias",
+            "description": "VALIDACIÓN: el trigo se siembra de mayo a julio; hoy cae fuera de esa ventana. No se crea la campaña.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 3,\n  \"superficieSembradaHa\": 60,\n  \"fechaSiembra\": \"{{hoy}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "09 · 422 · Campaña más grande que el lote (C2)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C2\", () => pm.expect(reglas).to.include(\"C2\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/campanias",
+            "description": "VALIDACIÓN: no se pueden sembrar 120 ha en un lote de 100 ha.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 120,\n  \"fechaSiembra\": \"{{hoy}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "10 · Productor planifica 60 ha de soja",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/campanias",
+            "description": "Siembra planificada para hoy.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 1,\n  \"superficieSembradaHa\": 60,\n  \"fechaSiembra\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"PLANIFICADA\", () => pm.expect(pm.response.json().estado).to.eql(\"PLANIFICADA\"));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"demoCampaniaSojaId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"demoCampaniaSojaId\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 · Productor planifica 40 ha de maíz en el mismo lote",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/campanias",
+            "description": "NUEVO: un lote puede tener campañas al mismo tiempo si son de cultivos distintos y entre todas no superan la superficie del lote (60 + 40 = 100 ha).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 2,\n  \"superficieSembradaHa\": 40,\n  \"fechaSiembra\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Conviven dos cultivos en el lote (C1 por superficie)\", () => pm.expect(pm.response.json().cultivoId).to.eql(2));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"demoCampaniaMaizId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"demoCampaniaMaizId\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 · 422 · Ya no entra otra campaña en el lote (C1)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/campanias",
+            "description": "El lote ya está completo (100 de 100 ha) y además ya tiene maíz en esas fechas: la API explica los dos motivos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 2,\n  \"superficieSembradaHa\": 10,\n  \"fechaSiembra\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"C1: supera la superficie del lote\", () => {",
+                  "    const detalles = pm.response.json().detalles || [];",
+                  "    pm.expect(detalles.some(d => String(d).startsWith(\"C1:\") && String(d).includes(\"libres: 0 ha\"))).to.be.true;",
+                  "});",
+                  "pm.test(\"C1: ya hay maíz en esas fechas\", () => {",
+                  "    const detalles = pm.response.json().detalles || [];",
+                  "    pm.expect(detalles.some(d => String(d).startsWith(\"C1:\") && String(d).includes(\"mismo cultivo\"))).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 · 422 · Siembra con fecha futura (C8)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C8\", () => pm.expect(reglas).to.include(\"C8\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/siembra",
+            "description": "VALIDACIÓN: la siembra real se registra cuando ya ocurrió: no puede ser una fecha futura.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMas3}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "14 · Productor registra la siembra de la soja",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/siembra",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));",
+                  "pm.test(\"Guarda la siembra real\", () => pm.expect(pm.response.json().fechaSiembraReal).to.eql(pm.collectionVariables.get(\"hoy\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 · 422 · Sembrar otra vez la soja (C5)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C5\", () => pm.expect(reglas).to.include(\"C5\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/siembra",
+            "description": "VALIDACIÓN: la campaña ya está SEMBRADA: el estado solo avanza (PLANIFICADA → SEMBRADA → COSECHADA).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "16 · Productor registra la siembra del maíz",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaMaizId}}/siembra",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaMaizId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 · 422 · Lluvia con fecha futura (C8)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C8\", () => pm.expect(reglas).to.include(\"C8\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/lluvias",
+            "description": "VALIDACIÓN: la lluvia se carga cuando ya cayó: no se puede cargar la de un día que todavía no llegó.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMas3}}\",\n  \"mm\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "18 · Operario carga la lluvia de hoy: 6,4 mm",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Lluvia de hoy en el lote\", () => { pm.expect(pm.response.json().fecha).to.eql(pm.collectionVariables.get(\"hoy\")); pm.expect(Number(pm.response.json().mm)).to.eql(6.4); });",
+                  "pm.test(\"La carga operario1\", () => pm.expect(pm.response.json().registradoPorNombre).to.eql(\"operario1 (Oscar Operario)\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/lluvias",
+            "description": "NUEVO: la lluvia se carga a mano (lo que marcó el pluviómetro). Es del lote: cuenta para la soja y el maíz. Si no llovió se carga 0.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"mm\": 6.4\n}"
+            }
+          }
+        },
+        {
+          "name": "19 · ¿Toca regar la soja? Le falta el primer riego",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/riego",
+            "description": "NUEVO: el cultivo necesita 25 mm cada 7 días (riego o lluvia). Al sembrar ya necesita su primer riego (riego de asiento): llovieron 6,4 mm, así que le faltan 18,6 mm. Mirá los campos \"mensaje\" y \"mmFaltantes\"."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Recién sembrada sin los 25 mm: TOCA_REGAR hoy\", () => {",
+                  "    pm.expect(r.estado).to.eql(\"TOCA_REGAR\");",
+                  "    pm.expect(r.origenUltimaAgua).to.eql(\"SIEMBRA\");",
+                  "    pm.expect(r.proximoRiego).to.eql(pm.collectionVariables.get(\"hoy\"));",
+                  "});",
+                  "pm.test(\"La soja pide 25 mm cada 7 días\", () => { pm.expect(r.diasEntreRiegos).to.eql(7); pm.expect(Number(r.mmPorRiego)).to.eql(25); });",
+                  "pm.test(\"Cuenta la lluvia cargada: 6,4 mm, faltan 18,6\", () => { pm.expect(Number(r.lluviaDesdeSiembraMm)).to.eql(6.4); pm.expect(Number(r.mmFaltantes)).to.eql(18.6); });",
+                  "pm.test(\"Todavía no hay riegos registrados\", () => pm.expect(r.riegosRegistrados).to.eql(0));",
+                  "// el paso 21 riega exactamente lo que falta",
+                  "pm.collectionVariables.set(\"demoLaminaMm\", r.mmFaltantes);",
+                  "console.log(\"Estado de riego:\", r.estado, \"-\", r.mensaje);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 · 403 · El agrónomo no puede registrar riegos (rol)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "let cuerpo = {}; try { cuerpo = pm.response.json() || {}; } catch (e) { /* el gateway responde 403 sin cuerpo */ }",
+                  "console.log(\"Rechazado (403):\", cuerpo.message || \"sin permiso para este rol\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAgronomo1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/riegos",
+            "description": "VALIDACIÓN: los riegos los registran el productor dueño o el operario asignado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"laminaMm\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "21 · Operario riega lo que falta para el primer riego",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/riegos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"laminaMm\": {{demoLaminaMm}}\n}"
+            },
+            "description": "Riega solo los mm que le faltan (el paso 19 los guardó): la lluvia ya aportó una parte."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\",\"demoLaminaMm\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Riego de hoy\", () => pm.expect(pm.response.json().fecha).to.eql(pm.collectionVariables.get(\"hoy\")));",
+                  "pm.test(\"Lo registra operario1\", () => pm.expect(pm.response.json().registradoPorSub).to.eql(\"22222222-2222-2222-2222-000000000001\"));",
+                  "pm.test(\"Y su nombre (del token)\", () => pm.expect(pm.response.json().registradoPorNombre).to.eql(\"operario1 (Oscar Operario)\"));",
+                  "pm.test(\"Riega lo que faltaba\", () => pm.expect(Number(pm.response.json().laminaMm)).to.eql(Number(pm.collectionVariables.get(\"demoLaminaMm\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "22 · ¿Toca regar? Ahora está al día",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/riego"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"AL_DIA\", () => pm.expect(r.estado).to.eql(\"AL_DIA\"));",
+                  "pm.test(\"La última agua fue el riego de hoy\", () => { pm.expect(r.origenUltimaAgua).to.eql(\"RIEGO\"); pm.expect(r.ultimaAgua).to.eql(pm.collectionVariables.get(\"hoy\")); });",
+                  "pm.test(\"Próximo riego en 7 días\", () => pm.expect(r.proximoRiego).to.eql(pm.collectionVariables.get(\"hoyMas7\")));",
+                  "pm.test(\"Lluvia + riego completaron los 25 mm: el próximo vuelve a pedir 25\", () => { pm.expect(Number(r.mmDesdeUltimaAgua)).to.eql(0); pm.expect(Number(r.mmFaltantes)).to.eql(25); });",
+                  "console.log(r.mensaje);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "23 · Operario monitorea: oruga al 35 % (alerta)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/monitoreos",
+            "description": "NUEVO: si la incidencia llega al umbral (20 %), el monitoreo queda como alerta y se recomienda aplicar.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"plagaId\": 1,\n  \"incidenciaPct\": 35,\n  \"fecha\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Genera una alerta (umbral 20 %)\", () => pm.expect(pm.response.json().alerta).to.be.true);",
+                  "console.log(pm.response.json().mensaje);",
+                  "pm.test(\"Guarda quién lo registró\", () => pm.expect(pm.response.json().registradoPorNombre).to.eql(\"operario1 (Oscar Operario)\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "24 · Productor ve la alerta pendiente",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/alertas?pendientes=true"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Una alerta pendiente por la oruga\", () => {",
+                  "    const a = pm.response.json();",
+                  "    pm.expect(a).to.have.lengthOf(1);",
+                  "    pm.expect(a[0].plagaId).to.eql(1);",
+                  "    pm.expect(a[0].atendida).to.be.false;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "25 · 422 · Aplicación con dosis fuera de rango: NO_RECOMENDADO (T2)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo T2\", () => pm.expect(reglas).to.include(\"T2\"));",
+                  "pm.test(\"ms-tratamientos la evalúa NO_RECOMENDADO\", () => pm.expect(b.resultado).to.eql(\"NO_RECOMENDADO\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/aplicaciones",
+            "description": "VALIDACIÓN: Clorpirifos va de 0,5 a 1,5 l/ha: con 3 l/ha ms-tratamientos no la recomienda y no se guarda (la alerta sigue pendiente).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 3,\n  \"superficieTratadaHa\": 60,\n  \"fecha\": \"{{hoy}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "26 · Operario aplica Clorpirifos contra la oruga",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenOperario1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/aplicaciones",
+            "description": "El proceso principal: ms-campos valida la campaña y le pide a ms-tratamientos que evalúe la aplicación.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agroquimicoId\": 1,\n  \"plagaId\": 1,\n  \"dosisPorHa\": 1,\n  \"superficieTratadaHa\": 60,\n  \"fecha\": \"{{hoy}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ms-tratamientos evalúa (habilitación, dosis, intervalo, carencia, restricción territorial) y calcula el costo.",
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"VIABLE: REGISTRADA\", () => { pm.expect(r.resultado).to.eql(\"VIABLE\"); pm.expect(r.estado).to.eql(\"REGISTRADA\"); });",
+                  "pm.test(\"Calcula dosis total, envases y costo\", () => { pm.expect(Number(r.dosisTotal)).to.eql(60); pm.expect(r.envases).to.eql(3); pm.expect(Number(r.costo)).to.be.above(0); });",
+                  "if (r.aplicacionId) { pm.collectionVariables.set(\"demoAplicacionId\", r.aplicacionId); } else { pm.collectionVariables.unset(\"demoAplicacionId\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "27 · La alerta queda atendida por la aplicación",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/alertas"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Atendida con la aplicación del paso 26\", () => {",
+                  "    const a = pm.response.json();",
+                  "    pm.expect(a).to.have.lengthOf(1);",
+                  "    pm.expect(a[0].atendida).to.be.true;",
+                  "    pm.expect(String(a[0].aplicacionId)).to.eql(String(pm.collectionVariables.get(\"demoAplicacionId\")));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "28 · 422 · Cosechar en la fecha estimada, que todavía no llegó (C8)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C8\", () => pm.expect(reglas).to.include(\"C8\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().motivos || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/cosecha",
+            "description": "VALIDACIÓN: hoy + 150 días es la cosecha estimada de la soja sembrada hoy: no se puede registrar una cosecha que todavía no ocurrió.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMas150}}\",\n  \"kgCosechados\": 210000\n}"
+            }
+          }
+        },
+        {
+          "name": "29 · 422 · Cosechar hoy: falta mucho para la cosecha estimada (C9)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{demoCampaniaSojaId}}/cosecha",
+            "description": "VALIDACIÓN: la soja se sembró hoy y su cosecha estimada es dentro de 150 días. Se puede cosechar recién desde 10 días antes de la estimada. La cosecha se muestra en la carpeta 02, con trigo sembrado hace meses.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"kgCosechados\": 210000\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoCampaniaSojaId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C9\", () => pm.expect(reglas).to.include(\"C9\"));",
+                  "pm.test(\"Dice desde cuándo se puede cosechar\", () => pm.expect(JSON.stringify(b.detalles)).to.include(\"se puede cosechar desde 10 días antes\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().message));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "30 · Historial del lote",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/lotes/{{demoLoteId}}/historial",
+            "description": "Todo lo que pasó en el lote en una sola consulta. El rendimiento por cultivo aparece cuando hay cosechas (ver la carpeta 02)."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"demoLoteId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior del demo no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const h = pm.response.json();",
+                  "const soja = h.campanias.find(c => c.cultivoId === 1);",
+                  "const maiz = h.campanias.find(c => c.cultivoId === 2);",
+                  "pm.test(\"Las dos campañas del lote\", () => pm.expect(h.campanias).to.have.lengthOf(2));",
+                  "pm.test(\"Soja sembrada, con su riego, monitoreo y aplicación\", () => {",
+                  "    pm.expect(soja.estado).to.eql(\"SEMBRADA\");",
+                  "    pm.expect(soja.riegos).to.eql(1);",
+                  "    pm.expect(soja.monitoreos).to.eql(1);",
+                  "    pm.expect(soja.aplicaciones).to.eql(1);",
+                  "    pm.expect(soja.alertasPendientes).to.eql(0);",
+                  "});",
+                  "pm.test(\"El maíz también sigue sembrado\", () => pm.expect(maiz.estado).to.eql(\"SEMBRADA\"));",
+                  "pm.test(\"Todavía no hay rendimiento: no se cosechó nada\", () => pm.expect(h.rendimientos).to.have.lengthOf(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 · Demo de cosecha (trigo sembrado hace meses)",
+      "description": "Cosecha con fechas reales: tres lotes con trigo sembrado hace 170, 180 y 185 días, así la cosecha estimada cae dentro de 10 días, hoy y hace 5 días. Muestra la regla C9: se cosecha desde 10 días antes de la estimada, el mismo día o después; antes, no. Funciona si hoy está entre el 2 de noviembre y el 18 de enero (la siembra tiene que caer en la ventana del trigo, de mayo a julio). Crea sus propios datos: se puede correr las veces que se quiera.",
+      "item": [
+        {
+          "name": "01 · Productor crea el establecimiento",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaEstablecimientoId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaEstablecimientoId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Establecimiento Cosecha {{$timestamp}}\",\n  \"operarios\": [\n    \"22222222-2222-2222-2222-000000000001\"\n  ],\n  \"latitudMin\": -32.71,\n  \"latitudMax\": -32.69,\n  \"longitudMin\": -62.11,\n  \"longitudMax\": -62.09\n}"
+            }
+          }
+        },
+        {
+          "name": "02 · Productor crea el lote A (100 ha)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaEstablecimientoId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaLoteAId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaLoteAId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{cosechaEstablecimientoId}}/lotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote A\",\n  \"latitud\": -32.7,\n  \"longitud\": -62.1,\n  \"superficieHa\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "03 · Productor crea el lote B (100 ha)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaEstablecimientoId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaLoteBId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaLoteBId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{cosechaEstablecimientoId}}/lotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote B\",\n  \"latitud\": -32.705,\n  \"longitud\": -62.095,\n  \"superficieHa\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "04 · Productor crea el lote C (100 ha)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaEstablecimientoId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaLoteCId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaLoteCId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/establecimientos/{{cosechaEstablecimientoId}}/lotes",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Lote C\",\n  \"latitud\": -32.695,\n  \"longitud\": -62.105,\n  \"superficieHa\": 100\n}"
+            }
+          }
+        },
+        {
+          "name": "05 · Planificar trigo sembrado hace 170 días en el lote A",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaLoteAId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaCampaniaAId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaCampaniaAId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{cosechaLoteAId}}/campanias",
+            "description": "El trigo se siembra de mayo a julio y tiene un ciclo de 180 días. Sembrado hace 170 días, se cosecha dentro de 10 días.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 3,\n  \"superficieSembradaHa\": 100,\n  \"fechaSiembra\": \"{{hoyMenos170}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "06 · Registrar la siembra del lote A (hace 170 días)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaAId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));",
+                  "pm.test(\"Cosecha estimada: siembra + 180 días\", () => pm.expect(pm.response.json().cosechaEstimada).to.eql(pm.collectionVariables.get(\"hoyMas10\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaAId}}/siembra",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMenos170}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "07 · Planificar trigo sembrado hace 180 días en el lote B",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaLoteBId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaCampaniaBId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaCampaniaBId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{cosechaLoteBId}}/campanias",
+            "description": "El trigo se siembra de mayo a julio y tiene un ciclo de 180 días. Sembrado hace 180 días: la cosecha estimada es HOY.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 3,\n  \"superficieSembradaHa\": 100,\n  \"fechaSiembra\": \"{{hoyMenos180}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "08 · Registrar la siembra del lote B (hace 180 días)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaBId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));",
+                  "pm.test(\"Cosecha estimada: siembra + 180 días\", () => pm.expect(pm.response.json().cosechaEstimada).to.eql(pm.collectionVariables.get(\"hoy\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaBId}}/siembra",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMenos180}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "09 · Planificar trigo sembrado hace 185 días en el lote C",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaLoteCId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().id) { pm.collectionVariables.set(\"cosechaCampaniaCId\", pm.response.json().id); } else { pm.collectionVariables.unset(\"cosechaCampaniaCId\"); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/lotes/{{cosechaLoteCId}}/campanias",
+            "description": "El trigo se siembra de mayo a julio y tiene un ciclo de 180 días. Sembrado hace 185 días: la cosecha estimada fue hace 5 días.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cultivoId\": 3,\n  \"superficieSembradaHa\": 100,\n  \"fechaSiembra\": \"{{hoyMenos185}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "10 · Registrar la siembra del lote C (hace 185 días)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaCId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"SEMBRADA\", () => pm.expect(pm.response.json().estado).to.eql(\"SEMBRADA\"));",
+                  "pm.test(\"Cosecha estimada: siembra + 180 días\", () => pm.expect(pm.response.json().cosechaEstimada).to.eql(pm.collectionVariables.get(\"hoyMenos5\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaCId}}/siembra",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMenos185}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "11 · 422 · Lote A: cosechar 11 días antes de la estimada (C9)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaAId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C9\", () => pm.expect(reglas).to.include(\"C9\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaAId}}/cosecha",
+            "description": "VALIDACIÓN: la estimada del lote A es dentro de 10 días; ayer eran 11 días antes: todavía no estaba maduro.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoyMenos1}}\",\n  \"kgCosechados\": 280000\n}"
+            }
+          }
+        },
+        {
+          "name": "12 · Lote A: cosechar hoy, 10 días antes de la estimada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaAId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"COSECHADA\", () => pm.expect(pm.response.json().estado).to.eql(\"COSECHADA\"));",
+                  "pm.test(\"Rendimiento: 280.000 kg / 100 ha = 2.800 kg/ha\", () => pm.expect(Number(pm.response.json().rendimientoKgHa)).to.eql(2800));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaAId}}/cosecha",
+            "description": "Justo en el límite: se puede cosechar desde 10 días antes de la estimada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"kgCosechados\": 280000\n}"
+            }
+          }
+        },
+        {
+          "name": "13 · Lote B: cosechar hoy, el mismo día de la estimada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaBId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"COSECHADA\", () => pm.expect(pm.response.json().estado).to.eql(\"COSECHADA\"));",
+                  "pm.test(\"Rendimiento: 320.000 kg / 100 ha = 3.200 kg/ha\", () => pm.expect(Number(pm.response.json().rendimientoKgHa)).to.eql(3200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaBId}}/cosecha",
+            "description": "La cosecha estimada es hoy.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"kgCosechados\": 320000\n}"
+            }
+          }
+        },
+        {
+          "name": "14 · Lote C: cosechar hoy, 5 días después de la estimada",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaCId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"COSECHADA\", () => pm.expect(pm.response.json().estado).to.eql(\"COSECHADA\"));",
+                  "pm.test(\"Rendimiento: 300.000 kg / 100 ha = 3.000 kg/ha\", () => pm.expect(Number(pm.response.json().rendimientoKgHa)).to.eql(3000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaCId}}/cosecha",
+            "description": "Se puede cosechar después de la estimada (por ejemplo, si llovió y no se pudo entrar al lote).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"kgCosechados\": 300000\n}"
+            }
+          }
+        },
+        {
+          "name": "15 · 422 · Lote C: cosechar otra vez (C5)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaCampaniaCId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C5\", () => pm.expect(reglas).to.include(\"C5\"));",
+                  "console.log(\"Rechazado:\", JSON.stringify(pm.response.json().detalles || pm.response.json().message));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/campanias/{{cosechaCampaniaCId}}/cosecha",
+            "description": "VALIDACIÓN: la campaña ya está COSECHADA.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fecha\": \"{{hoy}}\",\n  \"kgCosechados\": 1000\n}"
+            }
+          }
+        },
+        {
+          "name": "16 · Historial del lote B: rendimiento del trigo",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Si un paso anterior falló, esta variable está vacía: se avisa en vez de mandar \"null\" en la URL.",
+                  "for (const v of [\"cosechaLoteBId\"]) {",
+                  "    if (!pm.collectionVariables.get(v)) {",
+                  "        throw new Error(\"Falta \" + v + \": un paso anterior no salió bien (mirá su respuesta) o no se corrió.\");",
+                  "    }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const h = pm.response.json();",
+                  "pm.test(\"Trigo cosechado hoy con 320.000 kg\", () => { pm.expect(h.campanias[0].estado).to.eql(\"COSECHADA\"); pm.expect(Number(h.campanias[0].kgCosechados)).to.eql(320000); });",
+                  "pm.test(\"Rendimiento promedio del trigo: 3.200 kg/ha\", () => { pm.expect(h.rendimientos[0].cultivo).to.eql(\"Trigo\"); pm.expect(Number(h.rendimientos[0].rendimientoPromedioKgHa)).to.eql(3200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenProductor1}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [],
+            "url": "{{baseUrl}}/lotes/{{cosechaLoteBId}}/historial"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 · Seguridad (T08)",
       "item": [
         {
           "name": "200 · Health del gateway sin token",
@@ -401,7 +2943,7 @@
       ]
     },
     {
-      "name": "02 · Catálogo (ms-tratamientos)",
+      "name": "04 · Catálogo (ms-tratamientos)",
       "item": [
         {
           "name": "200 · Listar cultivos",
@@ -540,7 +3082,7 @@
       ]
     },
     {
-      "name": "03 · Recorrido completo con datos nuevos (T07, T09, T11, T16)",
+      "name": "05 · Recorrido completo con datos nuevos (T07, T09, T11, T16)",
       "description": "Crea sus propios datos: se puede correr las veces que se quiera. Usa fechas relativas a hoy ({{hoy}}, {{hoyMas3}}, ...).\n\nNota: planifica y siembra soja HOY, y la ventana de siembra de la soja es de octubre a diciembre. Si se corre de enero a septiembre, las requests de planificar y sembrar dan 422 C4: hay que cambiar a un cultivo cuya ventana incluya el mes actual (por ejemplo maíz, cultivoId 2, septiembre a diciembre; trigo, cultivoId 3, mayo a julio) y ajustar las fechas de C1, C4 y la cosecha esperada (hoyMas150 es el ciclo de la soja).",
       "item": [
         {
@@ -1276,52 +3818,7 @@
           ]
         },
         {
-          "name": "200 · Registrar la cosecha",
-          "request": {
-            "method": "POST",
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{tokenProductor1}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "url": "{{baseUrl}}/campanias/{{campaniaId}}/cosecha",
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"fecha\": \"{{hoy}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"COSECHADA\", () => pm.expect(pm.response.json().estado).to.eql(\"COSECHADA\"));",
-                  "pm.test(\"Guarda la fecha de cosecha\", () => pm.expect(pm.response.json().fechaCosecha).to.eql(pm.collectionVariables.get(\"hoy\")));"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "422 · Cosechar otra vez (C5)",
+          "name": "422 · Cosechar el mismo día de la siembra: demasiado temprano (C9)",
           "request": {
             "method": "POST",
             "auth": {
@@ -1358,11 +3855,9 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
-                  "pm.test(\"Motivo C5\", () => {",
-                  "    const b = pm.response.json();",
-                  "    const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
-                  "    pm.expect(reglas).to.include(\"C5\");",
-                  "});"
+                  "const b = pm.response.json();",
+                  "const reglas = (b.motivos || []).map(m => m.regla).concat((b.detalles || []).map(d => String(d).split(\":\")[0].trim()));",
+                  "pm.test(\"Motivo C9\", () => pm.expect(reglas).to.include(\"C9\"));"
                 ]
               }
             }
@@ -1371,7 +3866,7 @@
       ]
     },
     {
-      "name": "04 · Reglas con los datos de prueba",
+      "name": "06 · Reglas con los datos de prueba",
       "description": "Necesita la base recién creada (docker compose down -v): usa los datos iniciales.",
       "item": [
         {
@@ -1762,7 +4257,7 @@
       ]
     },
     {
-      "name": "05 · Agrónomo resuelve pendientes (T11)",
+      "name": "07 · Agrónomo resuelve pendientes (T11)",
       "item": [
         {
           "name": "200 · Bandeja de pendientes",
@@ -1975,7 +4470,7 @@
       ]
     },
     {
-      "name": "06 · Validaciones y errores",
+      "name": "08 · Validaciones y errores",
       "item": [
         {
           "name": "400 · Aplicación con dosis negativa",
@@ -2181,6 +4676,98 @@
     },
     {
       "key": "hoyMas365",
+      "value": ""
+    },
+    {
+      "key": "demoEstablecimientoId",
+      "value": ""
+    },
+    {
+      "key": "demoLoteId",
+      "value": ""
+    },
+    {
+      "key": "demoCampaniaSojaId",
+      "value": ""
+    },
+    {
+      "key": "demoCampaniaMaizId",
+      "value": ""
+    },
+    {
+      "key": "demoAplicacionId",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos10",
+      "value": ""
+    },
+    {
+      "key": "hoyMas7",
+      "value": ""
+    },
+    {
+      "key": "tokenProductor1Vence",
+      "value": ""
+    },
+    {
+      "key": "tokenProductor2Vence",
+      "value": ""
+    },
+    {
+      "key": "tokenOperario1Vence",
+      "value": ""
+    },
+    {
+      "key": "tokenAgronomo1Vence",
+      "value": ""
+    },
+    {
+      "key": "demoLaminaMm",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos5",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos170",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos180",
+      "value": ""
+    },
+    {
+      "key": "hoyMenos185",
+      "value": ""
+    },
+    {
+      "key": "cosechaEstablecimientoId",
+      "value": ""
+    },
+    {
+      "key": "cosechaLoteAId",
+      "value": ""
+    },
+    {
+      "key": "cosechaLoteBId",
+      "value": ""
+    },
+    {
+      "key": "cosechaLoteCId",
+      "value": ""
+    },
+    {
+      "key": "cosechaCampaniaAId",
+      "value": ""
+    },
+    {
+      "key": "cosechaCampaniaBId",
+      "value": ""
+    },
+    {
+      "key": "cosechaCampaniaCId",
       "value": ""
     }
   ]

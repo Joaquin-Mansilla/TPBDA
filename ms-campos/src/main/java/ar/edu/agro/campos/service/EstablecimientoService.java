@@ -36,6 +36,7 @@ public class EstablecimientoService {
         Establecimiento e = new Establecimiento();
         e.setNombre(r.nombre());
         e.setProductorSub(u.sub());
+        e.setProductorNombre(u.nombre());
         e.setLatitudMin(r.latitudMin());
         e.setLatitudMax(r.latitudMax());
         e.setLongitudMin(r.longitudMin());
@@ -77,7 +78,7 @@ public class EstablecimientoService {
     private EstablecimientoResponse aRespuesta(Establecimiento e) {
         BigDecimal ocupada = e.getLotes().stream().map(Lote::getSuperficieHa).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal libre = e.getSuperficieHa() == null ? null : e.getSuperficieHa().subtract(ocupada);
-        return new EstablecimientoResponse(e.getId(), e.getNombre(), e.getProductorSub(), new TreeSet<>(e.getOperarios()),
+        return new EstablecimientoResponse(e.getId(), e.getNombre(), e.getProductorSub(), e.getProductorNombre(), new TreeSet<>(e.getOperarios()),
                 e.getLotes().stream().map(l -> new LoteResumen(l.getId(), l.getNombre(), l.getSuperficieHa(), l.getEstadoSuelo())).toList(),
                 e.getLatitudMin(), e.getLatitudMax(), e.getLongitudMin(), e.getLongitudMax(), e.getSuperficieHa(), libre);
     }

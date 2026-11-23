@@ -15,6 +15,8 @@ public interface AplicacionRepository extends JpaRepository<Aplicacion, Long> {
     @Query("select a from Aplicacion a where a.campania.lote.id = :loteId and a.estado in :estados")
     List<Aplicacion> findByLoteYEstados(@Param("loteId") Long loteId, @Param("estados") Collection<EstadoAplicacion> estados);
 
+    List<Aplicacion> findByCampaniaIdOrderByFechaAsc(Long campaniaId);
+
     List<Aplicacion> findByEstadoOrderByIdDesc(EstadoAplicacion estado);
 
     List<Aplicacion> findAllByOrderByIdDesc();

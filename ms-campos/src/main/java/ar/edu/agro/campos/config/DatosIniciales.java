@@ -60,6 +60,9 @@ public class DatosIniciales implements ApplicationRunner {
         // rectángulos que contienen a sus lotes y alcanzan su superficie (≈ 2.500 ha y ≈ 415 ha)
         Establecimiento e1 = establecimiento("La Esperanza", productor1, Set.of(operario1), "-32.73", "-32.69", "-62.15", "-62.09");
         Establecimiento e2 = establecimiento("Los Aromos", productor2, Set.of(), "-32.81", "-32.79", "-62.31", "-62.29");
+        // nombres para mostrar, como los que sacaría la API del token de cada usuario (realm-agro.json)
+        e1.setProductorNombre("productor1 (Pedro Productor)");
+        e2.setProductorNombre("productor2 (Paula Productora)");
 
         Lote norte = lote(e1, "Lote Norte", "-32.700000", "-62.100000", "100.00", true, ClaseTextura.FRANCO, "25", "40", "35");
         Lote sur = lote(e1, "Lote Sur", "-32.710000", "-62.120000", "50.00", false, null, null, null, null);
@@ -81,6 +84,7 @@ public class DatosIniciales implements ApplicationRunner {
         a.setFecha(LocalDate.parse("2026-11-05"));
         a.setEstado(EstadoAplicacion.REGISTRADA);
         a.setRegistradaPorSub(operario1);
+        a.setRegistradaPorNombre("operario1 (Oscar Operario)");
         aplicaciones.save(a);
     }
 

@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 /**
  * Datos de prueba locales del catálogo. Solo cargan si no hay cultivos, así que reiniciar no duplica nada.
  * Los ids salen en orden, y los usa la colección de pruebas:
- *   cultivos: 1 Soja, 2 Maíz, 3 Trigo · plagas: 1 Oruga militar, 2 Chinche verde, 3 Roya
+ *   cultivos: 1 Soja, 2 Maíz (los dos con riego), 3 Trigo (a secano) · plagas: 1 Oruga militar, 2 Chinche verde, 3 Roya
  *   agroquímicos: 1 Clorpirifos Plus (habilitado), 2 Piretroide Max (restringido en Córdoba),
  *                 3 Glifosato Pro (sin habilitaciones), 4 Fungicida Triazol
  * Son valores de ejemplo, no fichas técnicas reales.
@@ -45,11 +45,13 @@ public class DatosIniciales implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         if (cultivos.count() > 0) {
+            completarRiego();
             return;
         }
-        Cultivo soja = cultivo("Soja", "Leguminosa", 150, 10, 12);
-        Cultivo maiz = cultivo("Maíz", "Gramínea", 160, 9, 12);
-        Cultivo trigo = cultivo("Trigo", "Gramínea", 180, 5, 7);
+        // riego: soja cada 7 días con 25 mm, maíz cada 5 días con 30 mm; el trigo se hace a secano
+        Cultivo soja = cultivo("Soja", "Leguminosa", 150, 10, 12, 7, "25");
+        Cultivo maiz = cultivo("Maíz", "Gramínea", 160, 9, 12, 5, "30");
+        Cultivo trigo = cultivo("Trigo", "Gramínea", 180, 5, 7, null, null);
 
         Plaga oruga = plaga("Oruga militar");
         Plaga chinche = plaga("Chinche verde");
@@ -75,13 +77,35 @@ public class DatosIniciales implements ApplicationRunner {
         habilitar(fungicida, soja, roya);
     }
 
-    private Cultivo cultivo(String nombre, String familia, int dias, int desde, int hasta) {
+    /**
+     * Bases creadas antes de agregar el riego: la soja y el maíz de prueba quedaron sin frecuencia (como a secano).
+     * Se completan una sola vez; si alguien ya les cargó un valor, no se toca.
+     */
+    private void completarRiego() {
+        for (Cultivo c : cultivos.findAll()) {
+            if (c.getDiasEntreRiegos() != null) {
+                continue;
+            }
+            if ("Soja".equalsIgnoreCase(c.getNombre())) {
+                c.setDiasEntreRiegos(7);
+                c.setMmPorRiego(new BigDecimal("25"));
+            } else if ("Maíz".equalsIgnoreCase(c.getNombre())) {
+                c.setDiasEntreRiegos(5);
+                c.setMmPorRiego(new BigDecimal("30"));
+            }
+        }
+    }
+
+    private Cultivo cultivo(String nombre, String familia, int dias, int desde, int hasta,
+                            Integer diasEntreRiegos, String mmPorRiego) {
         Cultivo c = new Cultivo();
         c.setNombre(nombre);
         c.setFamilia(familia);
         c.setDiasCiclo(dias);
         c.setMesSiembraDesde(desde);
         c.setMesSiembraHasta(hasta);
+        c.setDiasEntreRiegos(diasEntreRiegos);
+        c.setMmPorRiego(mmPorRiego == null ? null : new BigDecimal(mmPorRiego));
         return cultivos.save(c);
     }
 

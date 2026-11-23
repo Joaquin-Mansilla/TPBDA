@@ -76,6 +76,12 @@ public class CatalogoService {
         c.setDiasCiclo(r.diasCiclo());
         c.setMesSiembraDesde(r.mesSiembraDesde());
         c.setMesSiembraHasta(r.mesSiembraHasta());
+        // el riego va completo o no va: un cultivo a secano no tiene ninguno de los dos datos
+        if ((r.diasEntreRiegos() == null) != (r.mmPorRiego() == null)) {
+            throw ErroresDeRegla.de("CAT", "diasEntreRiegos y mmPorRiego van juntos: los dos, o ninguno si el cultivo es a secano");
+        }
+        c.setDiasEntreRiegos(r.diasEntreRiegos());
+        c.setMmPorRiego(r.mmPorRiego());
     }
 
     private Cultivo cultivo(Long id) {
@@ -84,7 +90,7 @@ public class CatalogoService {
 
     private CultivoResumenResponse aRespuesta(Cultivo c) {
         return new CultivoResumenResponse(c.getId(), c.getNombre(), c.getFamilia(), c.getDiasCiclo(),
-                c.getMesSiembraDesde(), c.getMesSiembraHasta());
+                c.getMesSiembraDesde(), c.getMesSiembraHasta(), c.getDiasEntreRiegos(), c.getMmPorRiego());
     }
 
     // ---------------- plagas

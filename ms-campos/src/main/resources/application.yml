@@ -33,6 +33,7 @@ management:
 agro:
   campanias:
     tolerancia-siembra-dias: 45   # cuánto puede adelantarse o atrasarse la siembra real respecto de la planificada
+    anticipo-cosecha-dias: 10      # C9: se puede cosechar desde estos días antes de la cosecha estimada (y después)
   # Cliente hacia ms-tratamientos (reenvía el token del usuario). Ver docs/cliente-tratamientos.md
   tratamientos:
     url-base: ${TRATAMIENTOS_URL:http://localhost:8082}
@@ -57,6 +58,10 @@ agro:
     textura:
       umbral-arena-pct: 50
       umbral-arcilla-pct: 35
+  riego:
+    tolerancia-dias: 2      # días de gracia después de la fecha de riego antes de marcarlo ATRASADO
+  monitoreos:
+    umbral-alerta-pct: 20   # incidencia desde la que un monitoreo genera una alerta (se recomienda aplicar)
   # Datos de prueba locales. Los sub tienen que coincidir con los usuarios de docker/keycloak/realm-agro.json
   datos-iniciales: ${AGRO_DATOS_INICIALES:true}
   seed:

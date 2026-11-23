@@ -22,6 +22,9 @@ public class Establecimiento {
     /** sub del token de Keycloak del dueño */
     @Column(name = "productor_sub", nullable = false, length = 36)
     private String productorSub;
+    /** nombre del productor al crearlo (solo para mostrar; la pertenencia usa el sub) */
+    @Column(name = "productor_nombre", length = 100)
+    private String productorNombre;
     /** operarios asignados (regla C6) */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "establecimiento_operario", joinColumns = @JoinColumn(name = "establecimiento_id"))

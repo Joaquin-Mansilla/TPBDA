@@ -7,6 +7,13 @@ aplicaciones. Puerto **8082**.
 - Seguridad: Resource Server; valida el JWT de Keycloak con el conversor de `agro-commons`.
 - Swagger: http://localhost:8082/swagger-ui.html
 
+## Riego de los cultivos
+
+Cada cultivo puede tener `diasEntreRiegos` (cada cuántos días necesita agua) y `mmPorRiego` (cuántos mm). Van juntos:
+los dos, o ninguno si el cultivo se hace a secano (si viene uno solo, 422 `CAT`). ms-campos los usa para decir si toca
+regar una campaña (regla R1, ver `ms-campos/README.md`). Datos de prueba: soja 25 mm cada 7 días, maíz 30 mm cada 5,
+trigo a secano. En una base creada antes de este cambio, al arrancar se completan los de la soja y el maíz.
+
 ## Correr en tu máquina
 
 Con Docker (recomendado): `docker compose up -d --build` en la raíz levanta este servicio junto con los demás.

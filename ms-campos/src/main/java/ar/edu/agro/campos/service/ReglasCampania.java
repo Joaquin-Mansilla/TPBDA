@@ -3,6 +3,7 @@ package ar.edu.agro.campos.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -15,12 +16,45 @@ public final class ReglasCampania {
     public record Rango(LocalDate desde, LocalDate hasta) {
     }
 
+    /** Lo que ocupa una campaña del lote: sus fechas, su cultivo y sus hectáreas (C1 con varios cultivos). */
+    public record Ocupacion(LocalDate desde, LocalDate hasta, Long cultivoId, BigDecimal superficieHa) {
+    }
+
     private ReglasCampania() {
     }
 
-    /** C1: una campaña no puede superponerse en fechas con otra del mismo lote. */
+    /** true si los dos períodos comparten al menos un día (los extremos cuentan). */
     public static boolean c1Superpone(LocalDate desde, LocalDate hasta, List<Rango> existentes) {
         return existentes.stream().anyMatch(r -> !hasta.isBefore(r.desde()) && !desde.isAfter(r.hasta()));
+    }
+
+    /** Las campañas que comparten días con el período dado. */
+    public static List<Ocupacion> c1Superpuestas(LocalDate desde, LocalDate hasta, List<Ocupacion> existentes) {
+        return existentes.stream().filter(o -> !hasta.isBefore(o.desde()) && !desde.isAfter(o.hasta())).toList();
+    }
+
+    /**
+     * C1 (con varios cultivos): un lote puede tener campañas al mismo tiempo, por ejemplo 60 ha de soja y 40 ha de
+     * maíz, siempre que sean de cultivos distintos y que entre todas no superen la superficie del lote.
+     * Se suman todas las campañas que se superponen con la nueva aunque entre ellas no se pisen: es la cuenta
+     * conservadora (nunca deja pasar un lote sobrecargado).
+     *
+     * @return los incumplimientos (vacío si la campaña entra)
+     */
+    public static List<String> c1Incumplimientos(LocalDate desde, LocalDate hasta, Long cultivoId, BigDecimal superficieHa,
+                                                 BigDecimal superficieLote, List<Ocupacion> existentes) {
+        List<Ocupacion> superpuestas = c1Superpuestas(desde, hasta, existentes);
+        List<String> motivos = new ArrayList<>();
+        if (superpuestas.stream().anyMatch(o -> o.cultivoId().equals(cultivoId))) {
+            motivos.add("Ya hay una campaña del mismo cultivo en el lote en esas fechas (para más hectáreas, se agranda esa campaña)");
+        }
+        BigDecimal ocupada = superpuestas.stream().map(Ocupacion::superficieHa).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (!superpuestas.isEmpty() && ocupada.add(superficieHa).compareTo(superficieLote) > 0) {
+            motivos.add("Con las campañas que se superponen el lote tendría " + ocupada.add(superficieHa).stripTrailingZeros().toPlainString()
+                    + " ha sembradas y tiene " + superficieLote.stripTrailingZeros().toPlainString() + " ha (libres: "
+                    + superficieLote.subtract(ocupada).max(BigDecimal.ZERO).stripTrailingZeros().toPlainString() + " ha)");
+        }
+        return motivos;
     }
 
     /** C2: la superficie sembrada (o tratada) no puede superar la del lote (o la sembrada). */
@@ -46,6 +80,14 @@ public final class ReglasCampania {
     /** C4: la siembra real no puede apartarse de la planificada más de toleranciaDias (para adelante o para atrás). */
     public static boolean c4DentroDeTolerancia(LocalDate planificada, LocalDate real, int toleranciaDias) {
         return Math.abs(ChronoUnit.DAYS.between(planificada, real)) <= toleranciaDias;
+    }
+
+    /**
+     * C9: se puede cosechar desde anticipoDias antes de la cosecha estimada (el cultivo tiene que estar maduro);
+     * el mismo día de la estimada y los posteriores también.
+     */
+    public static boolean c9CosechaATiempo(LocalDate cosecha, LocalDate cosechaEstimada, int anticipoDias) {
+        return !cosecha.isBefore(cosechaEstimada.minusDays(anticipoDias));
     }
 
     /** C8: lo que ya ocurrió (siembra, cosecha, pérdida, monitoreo) no puede tener fecha futura. */

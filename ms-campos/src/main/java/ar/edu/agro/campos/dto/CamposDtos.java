@@ -6,7 +6,9 @@ import ar.edu.agro.commons.contract.ResultadoEvaluacion;
 import ar.edu.agro.commons.contract.SueloDto;
 import ar.edu.agro.campos.model.EstadoAplicacion;
 import ar.edu.agro.campos.model.EstadoCampania;
+import ar.edu.agro.campos.model.EstadoRiego;
 import ar.edu.agro.campos.model.EstadoSuelo;
+import ar.edu.agro.campos.model.OrigenAgua;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -32,7 +34,8 @@ public final class CamposDtos {
     }
 
     /** superficieLibreHa = superficie del establecimiento menos la suma de sus lotes. */
-    public record EstablecimientoResponse(Long id, String nombre, String productorSub, Set<String> operarios,
+    public record EstablecimientoResponse(Long id, String nombre, String productorSub, String productorNombre,
+                                          Set<String> operarios,
                                           List<LoteResumen> lotes, BigDecimal latitudMin, BigDecimal latitudMax,
                                           BigDecimal longitudMin, BigDecimal longitudMax, BigDecimal superficieHa,
                                           BigDecimal superficieLibreHa) {
@@ -64,18 +67,25 @@ public final class CamposDtos {
                                   @NotNull LocalDate fechaSiembra) {
     }
 
-    /** fechaSiembra es la planificada; fechaSiembraReal, fechaCosecha y fechaPerdida se completan con cada acción. */
+    /**
+     * fechaSiembra es la planificada; fechaSiembraReal, fechaCosecha y fechaPerdida se completan con cada acción.
+     * kgCosechados y rendimientoKgHa (kg / superficie sembrada) se completan al cosechar, si se informan los kg.
+     */
     public record CampaniaResponse(Long id, Long loteId, Long cultivoId, BigDecimal superficieSembradaHa,
                                    LocalDate fechaSiembra, LocalDate cosechaEstimada, EstadoCampania estado,
                                    String motivoPerdida, LocalDate fechaSiembraReal, LocalDate fechaCosecha,
-                                   LocalDate fechaPerdida) {
+                                   LocalDate fechaPerdida, BigDecimal kgCosechados, BigDecimal rendimientoKgHa) {
     }
 
     // ---- acciones sobre la campaña (el estado cambia como consecuencia, C5)
     public record SiembraRequest(@NotNull LocalDate fecha) {
     }
 
-    public record CosechaRequest(@NotNull LocalDate fecha) {
+    /** kgCosechados es opcional: con él se calcula el rendimiento (kg/ha). */
+    public record CosechaRequest(@NotNull LocalDate fecha, @Positive BigDecimal kgCosechados) {
+        public CosechaRequest(LocalDate fecha) {
+            this(fecha, null);
+        }
     }
 
     public record PerdidaRequest(@NotNull LocalDate fecha, @NotBlank @Size(max = 255) String motivo) {
@@ -86,7 +96,67 @@ public final class CamposDtos {
                                    LocalDate fecha) {
     }
 
-    public record MonitoreoResponse(Long id, Long campaniaId, Long plagaId, BigDecimal incidenciaPct, LocalDate fecha) {
+    /** alerta = la incidencia llegó al umbral (agro.monitoreos.umbral-alerta-pct): se recomienda una aplicación (M1). */
+    public record MonitoreoResponse(Long id, Long campaniaId, Long plagaId, BigDecimal incidenciaPct, LocalDate fecha,
+                                    String registradoPorSub, String registradoPorNombre, boolean alerta, String mensaje) {
+    }
+
+    /**
+     * Un monitoreo que llegó al umbral (M1). Queda atendida cuando hay una aplicación hecha (REGISTRADA o
+     * AUTORIZADA_MANUALMENTE) contra la misma plaga en la campaña, con fecha igual o posterior al monitoreo.
+     */
+    public record AlertaResponse(Long monitoreoId, Long plagaId, BigDecimal incidenciaPct, LocalDate fecha,
+                                 boolean atendida, Long aplicacionId, String mensaje) {
+    }
+
+    // ---- riego (R1)
+    /** Sin fecha, es hoy. */
+    public record RiegoRequest(LocalDate fecha, @NotNull @Positive @DecimalMax("200") BigDecimal laminaMm) {
+    }
+
+    public record RiegoResponse(Long id, Long campaniaId, LocalDate fecha, BigDecimal laminaMm, String registradoPorSub,
+                                String registradoPorNombre) {
+    }
+
+    /** Lluvia del lote cargada a mano. Sin fecha, es hoy; 0 mm deja registrado que no llovió. */
+    public record LluviaRequest(LocalDate fecha, @NotNull @DecimalMin("0") @DecimalMax("500") BigDecimal mm) {
+    }
+
+    public record LluviaResponse(Long id, Long loteId, LocalDate fecha, BigDecimal mm, String registradoPorSub,
+                                 String registradoPorNombre) {
+    }
+
+    /**
+     * Estado de riego de una campaña (R1). Se calcula al consultarlo con los riegos de la campaña y las lluvias
+     * cargadas en el lote.
+     * mmFaltantes = cuánto hay que regar para completar el riego (mmPorRiego menos lo que ya juntó entre riego y
+     * lluvia desde la última agua completa).
+     * Con NO_REQUIERE o NO_SEMBRADA, los campos del cálculo van en null.
+     */
+    public record EstadoRiegoResponse(Long campaniaId, Long cultivoId, String cultivo, EstadoRiego estado,
+                                      String mensaje, Integer diasEntreRiegos, BigDecimal mmPorRiego,
+                                      LocalDate ultimaAgua, OrigenAgua origenUltimaAgua, Long diasSinAgua,
+                                      LocalDate proximoRiego, BigDecimal mmDesdeUltimaAgua, BigDecimal mmFaltantes,
+                                      BigDecimal lluviaDesdeSiembraMm, int riegosRegistrados,
+                                      BigDecimal mmRegadosTotal) {
+    }
+
+    // ---- historial del lote
+    public record HistorialLoteResponse(Long loteId, String nombre, BigDecimal superficieHa,
+                                        List<CampaniaHistorial> campanias, List<RendimientoCultivo> rendimientos) {
+    }
+
+    /** fechaSiembra es la real si ya se sembró; si no, la planificada. cultivo es null si ms-tratamientos no respondió. */
+    public record CampaniaHistorial(Long id, Long cultivoId, String cultivo, EstadoCampania estado,
+                                    BigDecimal superficieSembradaHa, LocalDate fechaSiembra, LocalDate cosechaEstimada,
+                                    LocalDate fechaCosecha, BigDecimal kgCosechados, BigDecimal rendimientoKgHa,
+                                    int monitoreos, int alertasPendientes, int aplicaciones, int riegos,
+                                    BigDecimal mmRegados) {
+    }
+
+    /** Promedio ponderado por hectárea de las campañas cosechadas con kg informados. */
+    public record RendimientoCultivo(Long cultivoId, String cultivo, int campaniasCosechadas, BigDecimal haCosechadas,
+                                     BigDecimal kgTotales, BigDecimal rendimientoPromedioKgHa) {
     }
 
     // ---- aplicaciones
@@ -98,7 +168,8 @@ public final class CamposDtos {
     public record AplicacionResponse(Long id, Long campaniaId, Long agroquimicoId, Long plagaId, BigDecimal dosisPorHa,
                                      BigDecimal superficieTratadaHa, LocalDate fecha, EstadoAplicacion estado,
                                      Long evaluacionId, BigDecimal dosisTotal, Integer envases, BigDecimal costo,
-                                     String justificacion, String autorizadaPorSub, String registradaPorSub) {
+                                     String justificacion, String autorizadaPorSub, String autorizadaPorNombre,
+                                     String registradaPorSub, String registradaPorNombre) {
     }
 
     public record AutorizacionRequest(@NotBlank @Size(max = 500) String justificacion) {

@@ -99,6 +99,7 @@ public class AplicacionService {
         a.setSuperficieTratadaHa(r.superficieTratadaHa());
         a.setFecha(r.fecha());
         a.setRegistradaPorSub(u.sub());
+        a.setRegistradaPorNombre(u.nombre());
 
         EvaluacionResponse ev;
         try {
@@ -175,6 +176,7 @@ public class AplicacionService {
         a.setEstado(EstadoAplicacion.AUTORIZADA_MANUALMENTE);
         a.setJustificacion(r.justificacion().trim());
         a.setAutorizadaPorSub(u.sub());
+        a.setAutorizadaPorNombre(u.nombre());
         aplicaciones.save(a);
         return aRespuesta(a);
     }
@@ -280,7 +282,7 @@ public class AplicacionService {
     private AplicacionResponse aRespuesta(Aplicacion a) {
         return new AplicacionResponse(a.getId(), a.getCampania().getId(), a.getAgroquimicoId(), a.getPlagaId(),
                 a.getDosisPorHa(), a.getSuperficieTratadaHa(), a.getFecha(), a.getEstado(), a.getEvaluacionId(),
-                a.getDosisTotal(), a.getEnvases(), a.getCosto(), a.getJustificacion(), a.getAutorizadaPorSub(),
-                a.getRegistradaPorSub());
+                a.getDosisTotal(), a.getEnvases(), a.getCosto(), a.getJustificacion(), a.getAutorizadaPorSub(), a.getAutorizadaPorNombre(),
+                a.getRegistradaPorSub(), a.getRegistradaPorNombre());
     }
 }

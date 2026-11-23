@@ -88,7 +88,7 @@ class CampaniaServiceTest {
 
         monitoreos = mock(MonitoreoRepository.class);
         when(monitoreos.save(any(Monitoreo.class))).thenAnswer(i -> i.getArgument(0));
-        servicio = new CampaniaService(campanias, monitoreos, lotes, new AccesoService(), tratamientos, tx, RELOJ, 45);
+        servicio = new CampaniaService(campanias, monitoreos, lotes, new AccesoService(), tratamientos, tx, RELOJ, 45, new BigDecimal("20"), 10);
     }
 
     private Campania existente(Long id, String siembra, String cosecha, EstadoCampania estado) {
@@ -195,10 +195,42 @@ class CampaniaServiceTest {
     void cosecharUnaCampaniaSembrada() {
         guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
 
-        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 20)), productor);
+        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 25)), productor);
 
         assertThat(r.estado()).isEqualTo(EstadoCampania.COSECHADA);
-        assertThat(r.fechaCosecha()).isEqualTo(LocalDate.of(2027, 3, 20));
+        assertThat(r.fechaCosecha()).isEqualTo(LocalDate.of(2027, 3, 25));
+    }
+
+    // ---- C9: se cosecha desde 10 días antes de la estimada (31/03/2027); hoy es 01/06/2027
+    @Test
+    void c9SePuedeCosecharJusto10DiasAntesDeLaEstimada() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 21)), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.COSECHADA);
+    }
+
+    @Test
+    void c9Cosechar11DiasAntesDeLaEstimadaEsDemasiadoTemprano() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        assertThatThrownBy(() -> servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 20)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).containsExactly(
+                        "C9: La cosecha (2027-03-20) es demasiado temprana: la estimada es el 2027-03-31 y se puede "
+                        + "cosechar desde 10 días antes (2027-03-21)"));
+        verify(campanias, never()).save(any());
+    }
+
+    @Test
+    void c9SePuedeCosecharElMismoDiaDeLaEstimadaYDespues() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+        guardada(existente(31L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        assertThat(servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 3, 31)), productor).estado())
+                .isEqualTo(EstadoCampania.COSECHADA);
+        assertThat(servicio.registrarCosecha(31L, new CosechaRequest(LocalDate.of(2027, 4, 20)), productor).estado())
+                .isEqualTo(EstadoCampania.COSECHADA);
     }
 
     @Test
@@ -297,12 +329,11 @@ class CampaniaServiceTest {
     }
 
     @Test
-    void sePuedeCosecharElMismoDiaDeLaSiembraYHoy() {
+    void c9NoSePuedeCosecharElMismoDiaDeLaSiembra() {
         guardada(existente(30L, "2027-06-01", "2027-10-29", EstadoCampania.SEMBRADA));
 
-        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 6, 1)), productor);
-
-        assertThat(r.estado()).isEqualTo(EstadoCampania.COSECHADA);
+        assertThatThrownBy(() -> servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 6, 1)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).singleElement().asString().startsWith("C9"));
     }
 
     @Test
@@ -382,5 +413,69 @@ class CampaniaServiceTest {
         assertThatThrownBy(() -> servicio.planificar(3L, new CampaniaRequest(1L, new BigDecimal("10"), LocalDate.of(2026, 12, 1)), productor))
                 .isInstanceOf(ReglaNegocioException.class)
                 .satisfies(ex -> assertThat(((ReglaNegocioException) ex).getMotivos()).anyMatch(m -> m.startsWith("C1")));
+    }
+
+    // ---- dos cultivos en el lote (lote de 80 ha con 70 ha de soja sembrada)
+    private static final CultivoResumenResponse MAIZ = new CultivoResumenResponse(2L, "Maíz", "Gramínea", 160, 9, 12);
+
+    @Test
+    void sePuedePlanificarOtroCultivoAlMismoTiempoSiEntraEnElLote() {
+        delLote.add(existente(11L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+        when(tratamientos.obtenerCultivo(2L)).thenReturn(MAIZ);
+
+        CampaniaResponse r = servicio.planificar(3L, new CampaniaRequest(2L, new BigDecimal("10"), LocalDate.of(2026, 12, 1)), productor);
+
+        assertThat(r.estado()).isEqualTo(EstadoCampania.PLANIFICADA);
+        assertThat(r.cultivoId()).isEqualTo(2L);
+    }
+
+    @Test
+    void otroCultivoQueNoEntraEnLoQueQuedaDelLoteEsC1() {
+        delLote.add(existente(11L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+        when(tratamientos.obtenerCultivo(2L)).thenReturn(MAIZ);
+
+        assertThatThrownBy(() -> servicio.planificar(3L, new CampaniaRequest(2L, new BigDecimal("11"), LocalDate.of(2026, 12, 1)), productor))
+                .satisfies(ex -> assertThat(motivos(ex)).anyMatch(m -> m.startsWith("C1") && m.contains("libres: 10 ha")));
+        verify(campanias, never()).save(any());
+    }
+
+    // ---- rendimiento
+    @Test
+    void laCosechaConKgCalculaElRendimiento() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 4, 1), new BigDecimal("245000")), productor);
+
+        assertThat(r.kgCosechados()).isEqualByComparingTo("245000");
+        assertThat(r.rendimientoKgHa()).isEqualByComparingTo("3500.0");   // 245.000 kg / 70 ha
+    }
+
+    @Test
+    void laCosechaSinKgNoTieneRendimiento() {
+        guardada(existente(30L, "2026-11-01", "2027-03-31", EstadoCampania.SEMBRADA));
+
+        CampaniaResponse r = servicio.registrarCosecha(30L, new CosechaRequest(LocalDate.of(2027, 4, 1)), productor);
+
+        assertThat(r.rendimientoKgHa()).isNull();
+    }
+
+    // ---- alertas de monitoreo (umbral 20 %)
+    @Test
+    void unMonitoreoQueLlegaAlUmbralEsAlerta() {
+        guardada(existente(30L, "2027-03-01", "2027-07-29", EstadoCampania.SEMBRADA));
+
+        var r = servicio.registrarMonitoreo(30L, new MonitoreoRequest(1L, new BigDecimal("20"), null), productor);
+
+        assertThat(r.alerta()).isTrue();
+        assertThat(r.mensaje()).contains("Se recomienda registrar una aplicación");
+    }
+
+    @Test
+    void unMonitoreoPorDebajoDelUmbralNoEsAlerta() {
+        guardada(existente(30L, "2027-03-01", "2027-07-29", EstadoCampania.SEMBRADA));
+
+        var r = servicio.registrarMonitoreo(30L, new MonitoreoRequest(1L, new BigDecimal("19.99"), null), productor);
+
+        assertThat(r.alerta()).isFalse();
     }
 }

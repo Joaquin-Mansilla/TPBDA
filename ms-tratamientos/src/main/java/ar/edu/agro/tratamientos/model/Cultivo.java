@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 @Entity
 @Table(name = "cultivo")
 @Getter @Setter @NoArgsConstructor
@@ -21,6 +23,12 @@ public class Cultivo {
     private Integer mesSiembraDesde;
     @Column(name = "mes_siembra_hasta", nullable = false)
     private Integer mesSiembraHasta;
+    /** Cada cuántos días necesita agua. null (junto con mmPorRiego) = se hace a secano. */
+    @Column(name = "dias_entre_riegos")
+    private Integer diasEntreRiegos;
+    /** Lámina de un riego en mm; una lluvia que llega a este valor cuenta como un riego. */
+    @Column(name = "mm_por_riego", precision = 6, scale = 1)
+    private BigDecimal mmPorRiego;
     @Column(nullable = false)
     private boolean activo = true;
 }

@@ -34,6 +34,8 @@ Los roles salen de `realm_access.roles` y se convierten en `ROLE_*` con `Keycloa
 | `PATCH /lotes/{id}/suelo`, `POST /lotes/{id}/suelo/refrescar` | no | no | sí |
 | Monitoreos (`/campanias/{id}/monitoreos`): POST | sí | sí | no |
 | Monitoreos: PUT, PATCH, DELETE | sí | no | no |
+| Riegos (`POST /campanias/{id}/riegos`) y lluvias (`POST /lotes/{id}/lluvias`) | sí | sí | no |
+| `GET /campanias/{id}/riego`, `/alertas` y `GET /lotes/{id}/historial` (entran en los GET de campos) | sí | sí | sí |
 | `POST /campanias/{id}/aplicaciones` (proceso principal) | sí | sí | no |
 | `POST /aplicaciones/{id}/autorizacion` y `/reevaluacion` | no | no | sí |
 | Catálogo (cultivos, plagas, agroquímicos): POST, PUT, PATCH, DELETE | no | no | sí |

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -37,10 +38,14 @@ public class CampaniaService {
     private final TransactionTemplate tx;
     private final Clock clock;
     private final int toleranciaSiembraDias;
+    private final BigDecimal umbralAlertaPct;
+    private final int anticipoCosechaDias;
 
     public CampaniaService(CampaniaRepository campanias, MonitoreoRepository monitoreos, LoteService lotes,
                            AccesoService acceso, TratamientosClient tratamientos, TransactionTemplate tx, Clock clock,
-                           @Value("${agro.campanias.tolerancia-siembra-dias:45}") int toleranciaSiembraDias) {
+                           @Value("${agro.campanias.tolerancia-siembra-dias:45}") int toleranciaSiembraDias,
+                           @Value("${agro.monitoreos.umbral-alerta-pct:20}") BigDecimal umbralAlertaPct,
+                           @Value("${agro.campanias.anticipo-cosecha-dias:10}") int anticipoCosechaDias) {
         this.campanias = campanias;
         this.monitoreos = monitoreos;
         this.lotes = lotes;
@@ -49,6 +54,13 @@ public class CampaniaService {
         this.tx = tx;
         this.clock = clock;
         this.toleranciaSiembraDias = toleranciaSiembraDias;
+        this.umbralAlertaPct = umbralAlertaPct;
+        this.anticipoCosechaDias = anticipoCosechaDias;
+    }
+
+    /** Incidencia desde la que un monitoreo genera una alerta (M1). */
+    public BigDecimal umbralAlertaPct() {
+        return umbralAlertaPct;
     }
 
     /**
@@ -76,8 +88,10 @@ public class CampaniaService {
             List<Campania> vigentes = vigentes(loteId);
             List<MotivoDto> motivos = new ArrayList<>();
 
-            if (ReglasCampania.c1Superpone(r.fechaSiembra(), cosecha, rangos(vigentes))) {
-                motivos.add(new MotivoDto("C1", "Las fechas se superponen con otra campaña del lote"));
+            // C1: puede convivir con otras campañas si es de otro cultivo y entre todas entran en el lote
+            for (String m : ReglasCampania.c1Incumplimientos(r.fechaSiembra(), cosecha, r.cultivoId(),
+                    r.superficieSembradaHa(), lote.getSuperficieHa(), ocupaciones(vigentes))) {
+                motivos.add(new MotivoDto("C1", m));
             }
             if (!ReglasCampania.c2SuperficieValida(r.superficieSembradaHa(), lote.getSuperficieHa())) {
                 motivos.add(new MotivoDto("C2", "La superficie sembrada (" + r.superficieSembradaHa()
@@ -121,8 +135,10 @@ public class CampaniaService {
         return vigentes.stream().filter(c -> c.getFechaSiembra().isBefore(fechaSiembra)).limit(2).toList();
     }
 
-    private static List<ReglasCampania.Rango> rangos(List<Campania> campanias) {
-        return campanias.stream().map(c -> new ReglasCampania.Rango(c.getFechaSiembra(), c.getCosechaEstimada())).toList();
+    /** Lo que ocupa cada campaña en el lote (C1). Una sembrada ocupa el lote desde la siembra real. */
+    private static List<ReglasCampania.Ocupacion> ocupaciones(List<Campania> campanias) {
+        return campanias.stream().map(c -> new ReglasCampania.Ocupacion(siembraEfectiva(c), c.getCosechaEstimada(),
+                c.getCultivoId(), c.getSuperficieSembradaHa())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -163,8 +179,9 @@ public class CampaniaService {
             }
             // con la fecha real cambia la cosecha estimada: no puede pisarse con otra campaña del lote
             List<Campania> otras = vigentes(c.getLote().getId()).stream().filter(o -> !o.getId().equals(c.getId())).toList();
-            if (ReglasCampania.c1Superpone(fecha, cosecha, rangos(otras))) {
-                motivos.add(new MotivoDto("C1", "Las fechas se superponen con otra campaña del lote"));
+            for (String m : ReglasCampania.c1Incumplimientos(fecha, cosecha, c.getCultivoId(),
+                    c.getSuperficieSembradaHa(), c.getLote().getSuperficieHa(), ocupaciones(otras))) {
+                motivos.add(new MotivoDto("C1", m));
             }
             if (!motivos.isEmpty()) {
                 throw ErroresDeRegla.de("La siembra no cumple las reglas de la campaña", motivos);
@@ -175,7 +192,11 @@ public class CampaniaService {
         });
     }
 
-    /** F05: registrar la cosecha (SEMBRADA -> COSECHADA, C5); la fecha va de la siembra real a hoy (C8). */
+    /**
+     * F05: registrar la cosecha (SEMBRADA -> COSECHADA, C5). La fecha va de la siembra real a hoy (C8) y no puede ser
+     * más de agro.campanias.anticipo-cosecha-dias (10) antes de la cosecha estimada (C9): el cultivo tiene que estar
+     * maduro. El mismo día de la estimada o después, sí.
+     */
     @Transactional
     public CampaniaResponse registrarCosecha(Long id, CosechaRequest r, Usuario u) {
         Campania c = buscar(id);
@@ -189,11 +210,16 @@ public class CampaniaService {
             if (!ReglasCampania.c8NoEsFutura(r.fecha(), hoy())) {
                 motivos.add(new MotivoDto("C8", "No se puede registrar una cosecha con fecha futura"));
             }
+            if (!ReglasCampania.c9CosechaATiempo(r.fecha(), c.getCosechaEstimada(), anticipoCosechaDias)) {
+                motivos.add(new MotivoDto("C9", "La cosecha (" + r.fecha() + ") es demasiado temprana: la estimada es el "
+                        + c.getCosechaEstimada() + " y se puede cosechar desde " + anticipoCosechaDias + " días antes ("
+                        + c.getCosechaEstimada().minusDays(anticipoCosechaDias) + ")"));
+            }
             if (!motivos.isEmpty()) {
                 throw ErroresDeRegla.de("La cosecha no cumple las reglas de la campaña", motivos);
             }
         }
-        c.cosechar(r.fecha());   // C5 si no estaba SEMBRADA
+        c.cosechar(r.fecha(), r.kgCosechados());   // C5 si no estaba SEMBRADA
         campanias.save(c);
         return aRespuesta(c);
     }
@@ -245,8 +271,22 @@ public class CampaniaService {
         m.setPlagaId(r.plagaId());
         m.setIncidenciaPct(r.incidenciaPct());
         m.setFecha(fecha);
+        m.setRegistradoPorSub(u.sub());
+        m.setRegistradoPorNombre(u.nombre());
         monitoreos.save(m);
-        return new MonitoreoResponse(m.getId(), c.getId(), m.getPlagaId(), m.getIncidenciaPct(), m.getFecha());
+        // M1: si la incidencia llega al umbral, el monitoreo queda como alerta hasta que se aplique contra esa plaga
+        boolean alerta = esAlerta(m.getIncidenciaPct());
+        String mensaje = alerta
+                ? "Alerta: la incidencia (" + m.getIncidenciaPct().stripTrailingZeros().toPlainString() + " %) llega al umbral ("
+                  + umbralAlertaPct.stripTrailingZeros().toPlainString() + " %). Se recomienda registrar una aplicación contra la plaga " + m.getPlagaId()
+                : "Incidencia por debajo del umbral (" + umbralAlertaPct.stripTrailingZeros().toPlainString() + " %): no hace falta aplicar";
+        return new MonitoreoResponse(m.getId(), c.getId(), m.getPlagaId(), m.getIncidenciaPct(), m.getFecha(),
+                m.getRegistradoPorSub(), m.getRegistradoPorNombre(), alerta, mensaje);
+    }
+
+    /** M1: la incidencia llega (o supera) el umbral configurado. */
+    public boolean esAlerta(BigDecimal incidenciaPct) {
+        return incidenciaPct.compareTo(umbralAlertaPct) >= 0;
     }
 
     public Campania buscar(Long id) {
@@ -268,6 +308,7 @@ public class CampaniaService {
     private CampaniaResponse aRespuesta(Campania c) {
         return new CampaniaResponse(c.getId(), c.getLote().getId(), c.getCultivoId(), c.getSuperficieSembradaHa(),
                 c.getFechaSiembra(), c.getCosechaEstimada(), c.getEstado(), c.getMotivoPerdida(),
-                c.getFechaSiembraReal(), c.getFechaCosecha(), c.getFechaPerdida());
+                c.getFechaSiembraReal(), c.getFechaCosecha(), c.getFechaPerdida(), c.getKgCosechados(),
+                c.rendimientoKgHa());
     }
 }
